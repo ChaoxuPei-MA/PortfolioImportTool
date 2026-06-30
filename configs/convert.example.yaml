@@ -1,0 +1,46 @@
+# Example Converter config. Copy, edit paths, and pass to Converter.exe:
+#   Converter.exe convert.example.yaml
+start_date: "20250630"
+RICS_version: "10.6"
+GCorr_Corporate_version: "2019"
+
+converter_paths:
+  data_path: "./UserData"
+  output_path: "./RICS_Files"
+
+converter_data_types:
+  granular: ["GC", "GCCRE", "AgencyMBS"]
+  portfolio: ["portfolio"]
+
+parameters_default_values:
+  ImpliedCreditClass_default_value: true
+  CreditClass_default_value: "CS15"
+  interpolate_lgd_lgdk_for_amortising: false
+  Using_GCorr_Corp_RSQ: false
+  Using_GCorr_Corp_country: true
+  Using_GCorr_Corp_industry: false
+  corp_rsq_fill_default_value: true
+  corp_rsq_default_value: 0.159719318
+  corp_factors_fill_value_groupby: true
+  corp_private_groupby_columnName: "securityType"
+
+file_types:
+  granular: ["issuers", "factors", "pds", "instruments", "lgd", "cashflows", "couponPayments", "laggard"]
+  portfolio: ["Portfolios", "Holdings"]
+
+moodys_internal_data: "./MoodysInternalData/"
+GCorr_Corporate: "GCorr{version}"
+GCorr_files:
+  file_name: "GCorr {version} Corp R-Squared Factors"
+  factors: "GCorrCorpFactors{version}"
+  rsqs: "RatingRSQGCorr{version}"
+Mapping_File: "GCorr_MappingTables.xlsx"
+Mapping_Tables:
+  country: "CountryNameMapping"
+  countryRegion: "GCorrFactosMappping"
+model_assumptions:
+  RSQ:
+    GC: 0.159719318
+    GCCRE: 0.2077
+floating_reference_yield_curves:
+  "USD 0-EDF SPOT": "NominalYieldCurve"

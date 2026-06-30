@@ -24,3 +24,16 @@ converter on the SAME sample config, hashes the output tree, and asserts
 
 The importer baseline (Part 3) is captured analogously on the parsed-config +
 generated-YAML, with the SG boundary mocked — added when Part 3 is planned.
+
+## Verify the refactor (Plan 2)
+After the converter is migrated, prove output equivalence locally:
+1. Capture the baseline (see above) so `tests/golden/converter_manifest.json` exists.
+2. Point a sample config's `output_path` at a fresh scratch dir and its
+   `moodys_internal_data` at the real local reference folder.
+3. Run:
+   ```powershell
+   $env:PIT_GOLDEN = "1"
+   $env:PIT_CONVERT_SAMPLE_CONFIG = "C:\scratch\convert\config.yaml"
+   python -m pytest tests/converter/test_golden_equivalence.py -v
+   ```
+4. PASS = the refactored converter is byte-for-byte identical to the original.
