@@ -1612,6 +1612,12 @@ def run(config: dict) -> None:
         licence_path=Path_Infos["licencePath"],
     )
     _bind_sg(sg)
+    if multiple_GCP_types:  # Check if not None and not empty
+        print("Starting to merge multiple folders for a single granular counterparty type...")
+        for folder, types in multiple_GCP_types.items():
+            merge_folders_to_base(Path_Infos['rics_gc_path'], folder, types)
+    else:
+        print("No multiple GCP types configured - skipping folder merge")
     main()
 
 
