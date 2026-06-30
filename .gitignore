@@ -13,6 +13,13 @@ tests/golden/
 sample_data/
 excelTool/*.xlsm
 
+# Local data, reference data, and outputs (yours — never committed)
+UserData/
+MoodysInternalData/
+RICS_Files/
+output/
+configs/*.local.yaml
+
 # Local results/logs
 *.log
 rics_*_results.json
