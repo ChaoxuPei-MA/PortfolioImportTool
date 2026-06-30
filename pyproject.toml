@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pit"
+version = "0.1.0"
+description = "Portfolio Import Tool — convert client data to RICS files and import into Moody's SG"
+requires-python = ">=3.11"
+dependencies = ["pyyaml>=6.0", "pandas>=2.0", "openpyxl>=3.1"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[project.scripts]
+pit-convert = "pit.converter.cli:main"
+pit-import = "pit.importer.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["pit*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
