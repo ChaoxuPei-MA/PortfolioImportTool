@@ -488,9 +488,41 @@ def test_normalize_output_config_handles_empty():
     # Confirm the real shape; assert it does not raise on minimal/empty input.
     result = normalize_output_config({"Issuer_Bond_Output": {}})
     assert result is not None
+
+
+# --- "No values given => no outputs" (user requirement: lock this behavior) ---
+
+def test_no_output_config_yields_no_outputs():
+    # Missing Issuer_Bond_Output entirely -> empty outputs and selection.
+    outputs, selection = normalize_output_config({})
+    assert outputs == [] and selection == []
+
+
+def test_blank_output_values_are_dropped():
+    # Blank/whitespace output names and selections are stripped; index-aligned to min length.
+    cfg = {"Issuer_Bond_Output": {
+        "outputs": ["CreditClass", "  ", ""],
+        "selection": [["GC"], ["  "], []],
+    }}
+    outputs, selection = normalize_output_config(cfg)
+    # only "CreditClass" survives on the outputs side; pairing is min(len(outputs), len(selection))
+    assert "CreditClass" in outputs
+    assert "" not in outputs and "  " not in outputs
+    assert len(outputs) == len(selection)
+
+
+def test_generate_output_bho_files_empty_returns_nothing(tmp_path):
+    from pit.importer.read_rics_files import generate_output_bho_files
+    model_lists = {"output_data": {"GC": ["GC.IssuerA"]}}
+    # No output types -> nothing generated.
+    assert generate_output_bho_files(model_lists, [["All"]], [], str(tmp_path)) == ([], [])
+    # No selection -> nothing generated.
+    assert generate_output_bho_files(model_lists, [], ["CreditClass"], str(tmp_path)) == ([], [])
+    # Confirm no .bho files were written.
+    assert not any(p.suffix == ".bho" for p in tmp_path.iterdir())
 ```
 
-> The implementer MUST read each function and write assertions matching its ACTUAL documented behavior (coercion rules, regex). These are characterization tests — they lock current behavior.
+> The implementer MUST read each function and write assertions matching its ACTUAL documented behavior (coercion rules, regex, exact return shape of `normalize_output_config`). These are characterization tests — they lock current behavior, including the user-required "no values given => no outputs" path at both the `normalize_output_config` and `generate_output_bho_files` layers. Adjust the assertions if the real return shape differs, but the empty-in/empty-out invariant MUST be asserted.
 
 - [ ] **Step 2: Run, verify pass**
 
