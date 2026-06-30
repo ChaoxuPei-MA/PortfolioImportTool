@@ -1,39 +1,49 @@
 # tests/golden_master/README.md
 
-Golden-master baselines freeze the ORIGINAL tools' output before refactoring.
+Golden-master baselines freeze the ORIGINAL converter's output so the migrated
+`pit.converter` can be proven equivalent.
 
 ## What is committed vs not
-- Committed: `tree_hash.py`, `capture_converter.py`, this README, the tests.
-- NOT committed (gitignored): `tests/golden/*.json`, any sample data.
+- Committed: `tree_hash.py`, `compare.py`, `capture_converter.py`, this README, the tests.
+- NOT committed (gitignored): `tests/golden/`, any sample data, the golden output tree.
 
-## Capture the converter baseline (run once, locally)
-1. Make a local copy of valid sample `UserData` and a `config.yaml` whose
-   `converter_paths.output_path` points at a scratch folder. Keep it OUTSIDE git.
-2. In PowerShell:
-   ```powershell
-   $env:PIT_ORIG_CONVERTER  = "C:\...\Projects\RICS_BulkImportFiles_Converter"
-   $env:PIT_CONVERTER_CONFIG = "C:\scratch\convert\config.yaml"
-   python tests/golden_master/capture_converter.py C:\scratch\convert\RICS_Files\20250630
-   ```
-3. Confirm `tests/golden/converter_manifest.json` was written.
+## Equivalence is numeric-tolerant, not byte-exact
+Floating-point summation order differs by ~1e-16 across pandas/numpy patch
+versions, so two numerically-identical runs can differ in the last digit of a
+float column. `compare.py::compare_trees` therefore compares float columns within
+a tolerance (`float_atol`, default 1e-9) while requiring exact equality for every
+non-float column and every non-CSV file. The timestamped summary file is ignored.
+(`tree_hash.py` byte-hashing remains for non-numeric uses and unit tests.)
 
-## How Part 2 uses it
-After the converter is refactored into `pit.converter`, a test runs the NEW
-converter on the SAME sample config, hashes the output tree, and asserts
-`diff_manifests(golden, new) == []`. Any difference fails the build.
+## IMPORTANT: pandas version
+The converter relies on pandas 2.x `groupby().apply()` semantics (pandas 3.0
+removed group-key inclusion). Run the original tool and the equivalence check
+with **pandas 2.x** (the project pins `pandas>=2.2,<3`). Use the project venv.
 
-The importer baseline (Part 3) is captured analogously on the parsed-config +
-generated-YAML, with the SG boundary mocked — added when Part 3 is planned.
+## Capture the golden tree (run once, locally)
+The simplest golden tree is the output of the working original — e.g. run the
+released `RICSConverter.exe` (self-contained) on a config whose `output_path`
+points at a scratch dir, OR reuse an existing `RICS_Files/` the original produced.
+Keep it OUTSIDE git.
 
-## Verify the refactor (Plan 2)
-After the converter is migrated, prove output equivalence locally:
-1. Capture the baseline (see above) so `tests/golden/converter_manifest.json` exists.
-2. Point a sample config's `output_path` at a fresh scratch dir and its
-   `moodys_internal_data` at the real local reference folder.
-3. Run:
-   ```powershell
-   $env:PIT_GOLDEN = "1"
-   $env:PIT_CONVERT_SAMPLE_CONFIG = "C:\scratch\convert\config.yaml"
-   python -m pytest tests/converter/test_golden_equivalence.py -v
-   ```
-4. PASS = the refactored converter is byte-for-byte identical to the original.
+```powershell
+& "C:\...\RICS_BulkImportFiles_Converter\dist\RICSConverter.exe" "C:\scratch\orig_config.yaml"
+# -> golden tree at the config's output_path, e.g. C:\scratch\orig_out
+```
+
+(`capture_converter.py` can instead run the original `main.py` directly, but that
+source needs Python 3.12+ to parse — the exe avoids that.)
+
+## Verify the migration (Plan 2)
+Prove the migrated converter matches the golden tree:
+```powershell
+$env:PIT_GOLDEN     = "1"
+$env:PIT_GOLDEN_DIR = "C:\scratch\orig_out"                 # original converter's output tree
+$env:PIT_CONVERT_SAMPLE_CONFIG = "C:\scratch\convert_config.yaml"  # output_path -> a fresh scratch dir
+.\.venv\Scripts\python -m pytest tests/converter/test_golden_equivalence.py -v
+```
+PASS = the migrated converter reproduces the original's output (exact for all
+integer/string data, within 1e-9 for floats, summary excluded).
+
+The importer baseline (Plan 3) will be captured analogously on the parsed-config
++ generated-YAML with the SG boundary mocked — added when Plan 3 is planned.
