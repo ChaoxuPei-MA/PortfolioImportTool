@@ -52,21 +52,21 @@ def _build_gcorr_info(config: dict, gcorr_corp_path: str, version: str) -> dict:
     return info
 
 
-def _process_portfolio(portfolio_data, all_matured, rics_import_format, output_dir):
+def _process_portfolio(portfolio_data, all_matured, rics_import_format, output_dir, portfolio_path):
     if not portfolio_data:
-        print(f"Warning: Portfolio folder not found. Skipping portfolio processing.")
+        print(f"Warning: Portfolio folder not found at '{portfolio_path}'. Skipping portfolio processing.")
         return None
     key = "PORTFOLIO" if "PORTFOLIO" in portfolio_data else "portfolio"
     if key not in portfolio_data:
-        print("Warning: Portfolio data not found (check configuration). Skipping.")
+        print("Warning: Portfolio data not found in loaded data (check configuration). Skipping portfolio processing.")
         return None
     files = portfolio_data[key]
     if not files or all(v is None for v in files.values()):
-        print("Warning: No valid portfolio files found. Skipping.")
+        print(f"Warning: No valid portfolio files found in '{portfolio_path}'. Skipping portfolio processing.")
         return None
 
     if all_matured:
-        print(f"\nFiltering {len(all_matured)} matured/removed instruments from holdings...")
+        print(f"\nFiltering {len(all_matured)} matured/removed instruments from portfolio holdings...")
         holdings_df = portfolio_data[key].get("Holdings")
         if holdings_df is not None and not holdings_df.empty:
             original_count = len(holdings_df)
@@ -79,7 +79,7 @@ def _process_portfolio(portfolio_data, all_matured, rics_import_format, output_d
                 .drop(columns=["InstrumentID"]).reset_index(drop=True)
             )
             removed = original_count - len(portfolio_data[key]["Holdings"])
-            print(f"  Removed {removed} matured/removed instrument holdings.")
+            print(f"  Removed {removed} matured/removed instrument holdings from portfolio. Remaining: {len(portfolio_data[key]['Holdings'])}")
 
     return Portfolio(portfolio_data[key], rics_import_format, output_dir).run()
 
@@ -153,7 +153,7 @@ def run(config: dict) -> dict:
 
     portfolio_data = load_user_data(portfolio_types, portfolio_file_types, portfolio_path)
     summaries["portfolio"] = _process_portfolio(
-        portfolio_data, all_matured, rics_import_format, output_dir
+        portfolio_data, all_matured, rics_import_format, output_dir, portfolio_path
     )
 
     write_summary_file(output_dir, start_date, summaries)
