@@ -168,7 +168,7 @@ Public macros: `RunConvert`, `RunImport`, `CreateConfigSheets` (builds both tabs
 3. **Settings** — *(moved up, directly under Paths)* load_sim, keep_existing_portfolios,
    import flags (economies / transition matrices / MPR / zscore), base_date, base_economy
 4. **Merge Data** — *(renamed from "Multiple GCP Types")* base-folder → sub-folders to merge
-5. **Outputs** — *(renamed from "Issuer/Bond Output")* output types × GCP-type selection
+5. **Issuer/Bond Output** — *(renamed from "Issuer/Bond Output")* output types × GCP-type selection
 6. **Structured Portfolios** — type / enabled / currency / weight definition
 7. **User Defined Portfolios** — combined portfolio name / portfolios to merge / currency / weight
 8. **Instructions**
