@@ -61,8 +61,10 @@ PortfolioImportTool/
 │   ├── convert.example.yaml   committed example
 │   ├── convert.local.yaml     your local Convert config (gitignored)
 │   └── import.local.yaml      your local Import config (gitignored)
+├── scripts/           helper scripts (e.g. compare_outputs.py)
 ├── tests/             unit + characterization + golden-master tests
 ├── docs/              specs, plans, this guide
+├── UserData/          your input data — optional, gitignored (see §4)
 ├── output/            generated RICS files / .bhs (gitignored)
 └── .venv/             virtual environment (gitignored)
 ```
@@ -76,7 +78,11 @@ Your data, reference data, and outputs are **gitignored** and never committed
 
 ### 4a. Lay out your UserData
 
-Put it anywhere; you point the config at it. It must contain two subfolders:
+Put it **anywhere** — including inside the project (e.g. `PortfolioImportTool\UserData\`,
+which is gitignored). You point the config at it via `converter_paths.data_path`
+(see §4c): an **absolute path**, or a **relative path** resolved from where you run
+the command (so `data_path: "UserData"` works when you run from the project root).
+It must contain two subfolders:
 
 ```
 UserData\
@@ -190,7 +196,38 @@ see `tests\golden_master\README.md` to run it.
 
 ---
 
-## 8. Troubleshooting
+## 8. Validate output against the original tool
+
+To prove the migrated converter matches the original `RICSConverter.exe`, compare
+their output trees with `scripts\compare_outputs.py`. It is **numeric-tolerant**:
+exact for every integer/string value and non-CSV file, and within a float
+tolerance (default `1e-9`) for float columns — because last-bit floating-point
+summation noise (~1e-16) differs across pandas/numpy patch versions and is not a
+data difference. The timestamped summary file is ignored by default.
+
+```powershell
+# 1) Produce the ORIGINAL output once (self-contained exe; same config as ours):
+& "C:\...\RICS_BulkImportFiles_Converter\dist\RICSConverter.exe" "C:\...\orig_config.yaml"
+#    -> writes to that config's output_path, e.g. C:\scratch\orig_out
+
+# 2) Produce OUR output:
+.\.venv\Scripts\python -m pit.converter.cli configs\convert.local.yaml   # -> .\output
+
+# 3) Compare:
+.\.venv\Scripts\python scripts\compare_outputs.py "C:\scratch\orig_out" output
+```
+
+Exit code `0` = equivalent; `1` = real differences (printed). It also prints a
+byte-level breakdown and, for any differing CSV, the max float delta per file —
+so you can see exactly what changed. Use `--atol <value>` to tighten/loosen the
+float tolerance, or `--include-summary` to also diff the summary file.
+
+> A previous run on the sample data reported `EQUIVALENT`: 30/32 files
+> byte-identical, the 2 factor-loadings files within `3.05e-16`, summary excluded.
+
+---
+
+## 9. Troubleshooting
 
 | Symptom | Cause / fix |
 |---------|-------------|
@@ -210,7 +247,7 @@ see `tests\golden_master\README.md` to run it.
 
 ---
 
-## 9. How it works (brief)
+## 10. How it works (brief)
 
 - `pit/shared/` provides one config loader/validator, one results-JSON contract,
   and shared logging used by both stages.
