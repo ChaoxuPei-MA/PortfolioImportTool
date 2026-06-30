@@ -1,10 +1,10 @@
 """Capture a golden-master manifest of the ORIGINAL converter's output.
 
-Usage (PowerShell), pointing at the existing original project + local sample data:
+Usage (PowerShell), pointing at the existing original project + local converter config:
 
-    $env:PIT_ORIG_CONVERTER = "C:\\...\\Projects\\RICS_BulkImportFiles_Converter"
-    $env:PIT_SAMPLE_DATA    = "C:\\...\\some\\local\\UserData_parent_with_config"
-    python tests/golden_master/capture_converter.py C:\\tmp\\pit_gm\\convert
+    $env:PIT_ORIG_CONVERTER  = "C:\\...\\Projects\\RICS_BulkImportFiles_Converter"
+    $env:PIT_CONVERTER_CONFIG = "C:\\scratch\\convert\\config.yaml"
+    python tests/golden_master/capture_converter.py C:\\scratch\\convert\\RICS_Files\\20250630
 
 The script runs the original converter via its config, then writes
 tests/golden/converter_manifest.json (gitignored) from the produced output tree.

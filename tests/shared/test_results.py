@@ -44,4 +44,4 @@ def test_write_results_never_raises_on_bad_dir():
     r = Result.error("x")
     # Non-existent nested dir that we don't create — must not raise.
     path = write_results(r, "Z:/no/such/dir/(probably)", "rics_import_results.json")
-    assert path  # returns the intended path even if write failed
+    assert path == os.path.join("Z:/no/such/dir/(probably)", "rics_import_results.json")

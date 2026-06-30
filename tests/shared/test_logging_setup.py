@@ -1,7 +1,21 @@
 import logging
 import os
 
+import pytest
+
 from pit.shared.logging_setup import setup_logging
+
+
+@pytest.fixture(autouse=True)
+def _restore_root_logger():
+    yield
+    root = logging.getLogger()
+    for handler in list(root.handlers):
+        root.removeHandler(handler)
+        try:
+            handler.close()
+        except Exception:
+            pass
 
 
 def test_setup_creates_log_file_and_writes(tmp_path):
