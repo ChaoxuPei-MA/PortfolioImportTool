@@ -10,7 +10,7 @@
 
 Merge two existing, related tools into one cohesive, robust, extensible project named
 **PortfolioImportTool**, and produce a **single Excel workbook**
-(`Portfolio_Import_Tool.xlsm`) in `RICS_Tools_Agent` with **two tabs**:
+(`Portfolio_Import_Tool.xlsm`) in `PortfolioImportTool\excelTool` with **two tabs**:
 
 - **Convert** — transforms simplified client/user data into RICS bulk-import CSV files.
   (Source: `RICS_BulkImportFiles_Converter`.)
@@ -36,7 +36,7 @@ refactor is proven to reproduce that output exactly.
 |---|----------|--------|
 | 1 | Scope | **Core pipeline only** (Converter + Importer). Auxiliary scripts excluded. |
 | 2 | Executables | **Two separate exes** — `Converter.exe` (no SG dependency), `Importer.exe` (requires Moody's SG + .NET + license). |
-| 3 | Excel target | **New workbook** `Portfolio_Import_Tool.xlsm` with two config tabs + unified VBA project. Existing `RICS_Tools(10.5)_Final_*.xlsm` left untouched. |
+| 3 | Excel target | **New workbook** `Portfolio_Import_Tool.xlsm` built into `PortfolioImportTool\excelTool`, with two config tabs + unified VBA project. Existing `RICS_Tools(10.5)_Final_*.xlsm` left untouched. |
 | 4 | Validation depth | **Tests + static checks, no live SG.** Converter validated end-to-end; Importer validated structurally with the SG boundary mocked. Live `.bhs` run is the user's manual acceptance step. |
 | 5 | Naming | Umbrella **"Portfolio Import Tool"**, stages **Convert/Import**, `PIT_` prefix throughout. |
 | 6 | xlsm build | **Auto-built via Excel automation** (win32com). VBA lives as version-controlled `.bas`; `.xlsm` is a reproducible build artifact. |
@@ -99,9 +99,10 @@ PortfolioImportTool/
 │       ├── cli.py                   # entry point for Importer.exe
 │       ├── pipeline.py              # was RICS_BulkImport_Tool.py — run(config) -> Result
 │       └── sg_api.py                # thin wrapper over the Moody's SG .NET boundary (mockable)
-├── excel/
+├── excel/                           # VBA source + builder (version-controlled)
 │   ├── PortfolioImportTool.bas      # ONE unified VBA module (shared core + Convert + Import)
-│   └── build_workbook.py            # win32com builder -> RICS_Tools_Agent\Portfolio_Import_Tool.xlsm
+│   └── build_workbook.py            # win32com builder -> excelTool\Portfolio_Import_Tool.xlsm
+├── excelTool/                       # build output: Portfolio_Import_Tool.xlsm (deliverable)
 ├── build/
 │   ├── converter.spec               # PyInstaller
 │   ├── importer.spec
@@ -234,7 +235,8 @@ independent).
   addin emitted (captured as VBA golden fixtures).
 
 - **Part 5 — Workbook auto-builder.** `excel/build_workbook.py` (win32com) → produces
-  `Portfolio_Import_Tool.xlsm` in `RICS_Tools_Agent`, imports the `.bas`, builds both tabs.
+  `Portfolio_Import_Tool.xlsm` in `PortfolioImportTool\excelTool`, imports the `.bas`,
+  builds both tabs.
   *Validate:* build runs; reopen workbook and assert sheets, key cells, buttons, and data
   validations exist; round-trip a sample config.
 
