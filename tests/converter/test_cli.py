@@ -63,5 +63,6 @@ def test_run_with_config_writes_results_and_returns_zero(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "_script_dir", lambda: str(out))
     rc = cli.run_converter_with_config(config)
     assert rc == 0
-    results = json.load(open(os.path.join(str(out), "rics_converter_results.json")))
+    with open(os.path.join(str(out), "rics_converter_results.json"), encoding="utf-8") as f:
+        results = json.load(f)
     assert results["status"] == "success"

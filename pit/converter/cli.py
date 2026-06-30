@@ -156,10 +156,11 @@ def main(argv: Optional[list] = None) -> int:
             return 1
         return run_converter_with_config(config)
 
-    if not os.path.exists("config.yaml"):
+    default_config = os.path.join(_script_dir(), "config.yaml")
+    if not os.path.exists(default_config):
         print("Error: no config provided and config.yaml not found", file=sys.stderr)
         return 1
-    return run_converter_with_config(load_config("config.yaml"))
+    return run_converter_with_config(load_config(default_config))
 
 
 if __name__ == "__main__":
