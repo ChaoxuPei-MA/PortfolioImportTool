@@ -143,38 +143,62 @@ PortfolioImportTool/
 
 Single `.xlsm`, one unified VBA module. A **shared VBA core** (workbook-path / OneDrive
 resolution, temp-YAML writing, exe execution, results-JSON parsing, results-sheet rendering)
-is parameterized by a per-tool **descriptor** (sheet names, exe path row, row map, YAML
-builder callback). This removes the ~90% duplication between the two original ~1500-line
-addins.
+is parameterized by a per-tool **descriptor**. This removes the ~90% duplication between the
+two original ~1500-line addins.
 
 Public macros: `RunConvert`, `RunImport`, `CreateConfigSheets` (builds both tabs),
 `ViewConvertLog`, `ViewImportLog`, `ViewConvertSummary`.
 
-### 6.1 Convert tab (`PIT_Convert_Config`) — section order
+### 6.0 Design principles (input simplification + easy renaming)
 
-1. **Tool Configuration** — exe path, results JSON path, log path
-2. **Paths** — Data Path, Output Path
-3. **General Settings** — Start Date, GCorr Corporate Version, RICS Version
-4. **Data Types to Process** — granularCounterparty folder list, portfolio enable
-5. **Advanced Settings** — *(renamed from "Parameter Settings")* ImpliedCreditClass default,
-   CreditClass default, LGD interpolation, GCorr RSQ/country/industry flags, RSQ defaults,
-   groupby settings
+- **Fewer inputs via derivation.** The user enters only the essential fields; the VBA
+  derives the rest before building the YAML. The **internal config the Python CLI receives
+  is unchanged** (same keys/structure as `configs/*.yaml`), so no Python changes are needed —
+  the VBA maps friendly labels → internal keys and fills derived values.
+- **Centralized labels + derivations.** All user-facing field labels AND the derivation
+  rules live in ONE definitions block in the VBA (an internal-key → display-label map plus
+  small derive helpers). Renaming a field later is a one-line edit; internal keys
+  (`data_path`, `output_path`, `rics_path`, `paths.assembly_path`, …) stay fixed. (Several
+  labels are expected to change later — this design makes that trivial.)
+- **Derived, hidden Tool Configuration.** Each tab's Tool Configuration shows only the
+  **exe path**. The results-JSON and log paths are derived as the exe's folder + the fixed
+  filenames (`rics_converter_results.json`/`rics_converter.log`,
+  `rics_import_results.json`/`rics_import.log`) — which is exactly where each CLI writes them
+  via `_script_dir()`. They are not shown or entered.
+
+### 6.1 Convert tab (`PIT_Convert_Config`) — sections & inputs
+
+1. **Tool Configuration** — **Converter Exe Path** (only). Results/log derived from its folder.
+2. **Paths** — Data Path · **RICSFormatData Path** (internal key `output_path`; the converter's
+   RICS-format output)
+3. **General Settings** — Start Date (**mm/dd/yyyy**, VBA converts to `YYYYMMDD`) · GCorr
+   Corporate Version · RICS Version
+4. **Data Types to Process** — granularCounterparty folder list · portfolio enable
+5. **Advanced Settings** — ImpliedCreditClass default, CreditClass default, LGD interpolation,
+   GCorr RSQ/country/industry flags, RSQ defaults, groupby settings
 6. **Instructions**
 
-### 6.2 Import tab (`PIT_Import_Config`) — section order (reordered per user)
+### 6.2 Import tab (`PIT_Import_Config`) — sections & inputs
 
-1. **Tool Configuration** — exe path, results JSON path, log path
-2. **Paths** — runtime config, assembly, data, model, licence, rics_path, output, load_sim
-3. **Settings** — *(moved up, directly under Paths)* load_sim, keep_existing_portfolios,
-   import flags (economies / transition matrices / MPR / zscore), base_date, base_economy
-4. **Merge Data** — *(renamed from "Multiple GCP Types")* base-folder → sub-folders to merge
-5. **Issuer/Bond Output** — *(renamed from "Issuer/Bond Output")* output types × GCP-type selection
+1. **Tool Configuration** — **Importer Exe Path** (only). Results/log derived from its folder.
+2. **Paths**
+   - **SG Path** (single input) — derives the four SG paths:
+     `paths.assembly_path = <SG Path>`, `paths.runtime_config = <SG Path>\MoodysAnalytics.SG.UI.runtimeconfig.json`,
+     `paths.data_path = <SG Path>\Data`, `paths.model_path = <SG Path>\Models`.
+   - Licence Path (`paths.licence_path`)
+   - **RICSFormatData Path** (`paths.rics_path`; the converter's output to import)
+   - **RICS Sim Output Path** (`paths.output_path`; the `.bhs`)
+   - **Load Existing RICS Sim Path** (`paths.load_sim_path`)
+3. **Settings** — load_sim, keep_existing_portfolios, import flags (economies / transition
+   matrices / MPR / zscore), base_date, base_economy
+4. **Merge Data** — base-folder → sub-folders to merge (`multiple_gcp_types`)
+5. **Issuer/Bond Output** — output types × GCP-type selection (empty ⇒ no outputs added)
 6. **Structured Portfolios** — type / enabled / currency / weight definition
 7. **User Defined Portfolios** — combined portfolio name / portfolios to merge / currency / weight
 8. **Instructions**
 
-> Row-constant maps in the VBA must be updated to match these new orders. Because section
-> ordering changes, the row indices are regenerated from scratch rather than reused.
+> Label→key mapping and derivations are defined once in the VBA. Because layouts changed,
+> row-constant maps are regenerated from scratch rather than reused.
 
 ---
 
