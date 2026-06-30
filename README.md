@@ -100,12 +100,14 @@ UserData\
 - A known-good template lives at
   `..\RICS_BulkImportFiles_Converter\UserData` — copy it and swap in your data.
 
-### 4b. Get the reference data (MoodysInternalData)
+### 4b. Reference data (MoodysInternalData)
 
 This folder holds GCorr factors, RICS format files, and mapping tables (Moody's
-reference data, not your data). It is **not** in the repo. Point the config at an
-existing copy, e.g. `..\RICS_BulkImportFiles_Converter\MoodysInternalData`, or copy
-that folder into the project.
+reference data, not your data). It lives **inside the project** at
+`PortfolioImportTool\MoodysInternalData\` (gitignored — kept locally, never
+committed) so the project is fully self-contained and independent of the old
+projects. The config points at it with the relative path `moodys_internal_data:
+"MoodysInternalData"`. If you ever relocate it, update that line.
 
 ### 4c. Configure
 
