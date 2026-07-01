@@ -11,7 +11,9 @@ requires-python = ">=3.11"
 # key-inclusion semantics (removed in pandas 3.0). The original tool was
 # developed on pandas 2.3.x. Modernizing to pandas 3 is a future task,
 # guarded by the golden-master equivalence test.
-dependencies = ["pyyaml>=6.0", "pandas>=2.2,<3", "openpyxl>=3.1"]
+# pythonnet is required by the Import stage (loads the Moody's SG .NET API).
+# The Convert stage does not need it. Windows + a .NET runtime required at run time.
+dependencies = ["pyyaml>=6.0", "pandas>=2.2,<3", "openpyxl>=3.1", "pythonnet>=3.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.4", "pyinstaller>=6.0"]
