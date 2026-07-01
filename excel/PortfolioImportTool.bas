@@ -128,7 +128,7 @@ Public Function FieldsConvert() As Variant
         "Advanced Settings|Using_GCorr_Corp_RSQ|Using GCorr Corp RSQ|bool|FALSE||", _
         "Advanced Settings|Using_GCorr_Corp_country|Using GCorr Corp country|bool|TRUE||", _
         "Advanced Settings|Using_GCorr_Corp_industry|Using GCorr Corp industry|bool|FALSE||", _
-        "Advanced Settings|corp_rsq_fill_default_value|Fill missing RSQ with default|bool|TRUE||", _
+        "Advanced Settings|corp_rsq_fill_default_value|Fill missing RSQ with default value|bool|TRUE||", _
         "Advanced Settings|corp_rsq_default_value|Corp RSQ default value|text|0.159719318||", _
         "Advanced Settings|corp_factors_fill_value_groupby|Fill factors by groupby|bool|TRUE||", _
         "Advanced Settings|corp_private_groupby_columnName|Private groupby column|text|securityType||" _
