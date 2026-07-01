@@ -40,7 +40,12 @@ def test_resolve_moodys_data_finds_dir(tmp_path):
     assert os.path.normpath(cli.resolve_moodys_data(config)) == os.path.normpath(str(d))
 
 
-def test_resolve_moodys_data_raises_when_absent(tmp_path):
+def test_resolve_moodys_data_raises_when_absent(tmp_path, monkeypatch):
+    # Isolate from any real MoodysInternalData on the search path: resolve_moodys_data
+    # also probes script_dir, its parent, and the CWD. Point all of those at empty
+    # temp dirs so the "not found anywhere" path is exercised deterministically.
+    monkeypatch.setattr(cli, "_script_dir", lambda: str(tmp_path / "scriptdir"))
+    monkeypatch.chdir(tmp_path)
     config = {"moodys_internal_data": str(tmp_path / "nope")}
     with pytest.raises(FileNotFoundError):
         cli.resolve_moodys_data(config)
