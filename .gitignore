@@ -20,6 +20,9 @@ RICS_Files/
 output/
 configs/*.local.yaml
 
+# Distribution package (built by build/make_touser.py — large exes)
+ToUser/
+
 # Local results/logs
 *.log
 rics_*_results.json

@@ -15,36 +15,37 @@ either one alone, or both in sequence.
 
 ---
 
-## Building the executables
+## Building the executables & the shareable package
 
-Two standalone Windows executables are produced into `dist\` from the project venv.
+Three standalone Windows executables are produced into `dist\`, and a self-contained
+`ToUser\` folder is assembled for distribution — all from the project venv.
 
 ### Prerequisites
 
-One-time setup (project venv with dev extras):
+One-time setup (project venv with dev extras); also build the workbook once
+(`excel\build_workbook.py`) so it can be included in the package:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -e ".[dev]"
 ```
 
-### Build both executables at once
+### Build everything + assemble ToUser\
 
 ```bat
 build\build_all.bat
 ```
 
-This runs two `pyinstaller` commands and writes `dist\Converter.exe` and
-`dist\Importer.exe`.
+This builds `dist\Converter.exe`, `dist\Importer.exe`, `dist\Pipeline.exe`, then runs
+`build\make_touser.py` to assemble `ToUser\`.
 
 ### Build individually
 
 ```powershell
-# Converter
 .\.venv\Scripts\pyinstaller.exe --clean --noconfirm --distpath dist --workpath build\_work build\converter.spec
-
-# Importer
 .\.venv\Scripts\pyinstaller.exe --clean --noconfirm --distpath dist --workpath build\_work build\importer.spec
+.\.venv\Scripts\pyinstaller.exe --clean --noconfirm --distpath dist --workpath build\_work build\pipeline.spec
+.\.venv\Scripts\python build\make_touser.py     # assemble ToUser\
 ```
 
 ### What each exe does
@@ -52,13 +53,27 @@ This runs two `pyinstaller` commands and writes `dist\Converter.exe` and
 | Executable | Entry point | Bundles | Runtime requirements |
 |------------|-------------|---------|----------------------|
 | `dist\Converter.exe` | `pit.converter.cli` | `MoodysInternalData\` (frozen in) | None — fully self-contained |
-| `dist\Importer.exe`  | `pit.importer.cli`  | `pythonnet` / `clr` DLLs | Moody's SG install at runtime (SG assemblies NOT bundled — located via `assembly_path` in config) |
+| `dist\Importer.exe`  | `pit.importer.cli`  | `pythonnet` / `clr` DLLs | Moody's SG install at runtime (SG assemblies NOT bundled — located via `assembly_path`) |
+| `dist\Pipeline.exe`  | `scripts\run_pipeline` | `MoodysInternalData\` + `pythonnet` | SG at runtime (for the import stage) |
 
-The workbook's exe-path fields default to `.\dist\Converter.exe` / `.\dist\Importer.exe`
-so the defaults work if you build from the project root.
+The workbook's exe-path fields default to `.\dist\Converter.exe` / `.\dist\Importer.exe`.
 
-`dist\` and `build\_work\` are gitignored. The `.spec` files and entry scripts
-under `build\` are tracked.
+### The `ToUser\` distribution package
+
+`build\make_touser.py` assembles a **self-contained folder to share** — zip it and send;
+the recipient follows `ToUser\UserGuide.md` (no Python needed):
+
+```
+ToUser\
+├── Portfolio_Import_Tool.xlsm     workbook (Convert / Import tabs)
+├── dist\  Converter.exe · Importer.exe · Pipeline.exe
+├── configs\  convert_config.yaml · import_config.yaml · pipeline_config.yaml
+├── UserData\  (structure + README per folder — recipient adds their CSVs)
+└── UserGuide.md
+```
+
+`dist\`, `build\_work\`, and `ToUser\` are gitignored (large exes). The `.spec` files,
+entry scripts, `make_touser.py`, and the `build\touser\` sources are tracked.
 
 ---
 
