@@ -122,8 +122,8 @@ Public Function FieldsConvert() As Variant
         "General Settings|RICS_version|RICS Version|dropdown|10.6|10.5,10.6|", _
         "Data Types to Process|granular|granularCounterparty|text|GC, GCCRE, AgencyMBS||", _
         "Data Types to Process|portfolio|portfolio|bool|TRUE||", _
-        "Advanced Settings|ImpliedCreditClass_default_value|ImpliedCreditClass default|bool|TRUE||", _
-        "Advanced Settings|CreditClass_default_value|CreditClass default|text|CS15||", _
+        "Advanced Settings|ImpliedCreditClass_default_value|ImpliedCreditClass default value|bool|TRUE||", _
+        "Advanced Settings|CreditClass_default_value|CreditClass default value|text|CS15||", _
         "Advanced Settings|interpolate_lgd_lgdk_for_amortising|Interpolate LGD/LGDK (amortising)|bool|FALSE||", _
         "Advanced Settings|Using_GCorr_Corp_RSQ|Using GCorr Corp RSQ|bool|FALSE||", _
         "Advanced Settings|Using_GCorr_Corp_country|Using GCorr Corp country|bool|TRUE||", _
@@ -484,8 +484,8 @@ Public Sub AddRunButton(ws As Worksheet, caption As String, macroName As String)
     Next shp
 
     Dim buttonRow As Long
-    buttonRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).row + 2
-    If buttonRow < 30 Then buttonRow = 30
+    buttonRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).row + 1
+    If buttonRow < 28 Then buttonRow = 28
 
     Dim btn As Button
     Set btn = ws.Buttons.Add(ws.Cells(buttonRow, 1).Left, ws.Cells(buttonRow, 1).Top, 250, 40)
