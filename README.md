@@ -15,6 +15,53 @@ either one alone, or both in sequence.
 
 ---
 
+## Building the executables
+
+Two standalone Windows executables are produced into `dist\` from the project venv.
+
+### Prerequisites
+
+One-time setup (project venv with dev extras):
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python -m pip install -e ".[dev]"
+```
+
+### Build both executables at once
+
+```bat
+build\build_all.bat
+```
+
+This runs two `pyinstaller` commands and writes `dist\Converter.exe` and
+`dist\Importer.exe`.
+
+### Build individually
+
+```powershell
+# Converter
+.\.venv\Scripts\pyinstaller.exe --clean --noconfirm --distpath dist --workpath build\_work build\converter.spec
+
+# Importer
+.\.venv\Scripts\pyinstaller.exe --clean --noconfirm --distpath dist --workpath build\_work build\importer.spec
+```
+
+### What each exe does
+
+| Executable | Entry point | Bundles | Runtime requirements |
+|------------|-------------|---------|----------------------|
+| `dist\Converter.exe` | `pit.converter.cli` | `MoodysInternalData\` (frozen in) | None — fully self-contained |
+| `dist\Importer.exe`  | `pit.importer.cli`  | `pythonnet` / `clr` DLLs | Moody's SG install at runtime (SG assemblies NOT bundled — located via `assembly_path` in config) |
+
+The workbook's exe-path fields default to `.\dist\Converter.exe` / `.\dist\Importer.exe`
+so the defaults work if you build from the project root.
+
+`dist\` and `build\_work\` are gitignored. The `.spec` files and entry scripts
+under `build\` are tracked.
+
+---
+
 ## 1. Requirements
 
 - **Windows** (the Import stage uses Moody's SG .NET assemblies).
