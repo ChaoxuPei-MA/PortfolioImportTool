@@ -24,6 +24,17 @@ def build(bas_path: str = BAS, out_xlsm: str = OUT) -> str:
         wb = xl.Workbooks.Add()
         wb.VBProject.VBComponents.Import(bas_path)
         xl.Run("CreateConfigSheets")
+        # Delete the default empty Sheet1 if it exists and is empty
+        try:
+            sheet1 = wb.Worksheets("Sheet1")
+            # Only delete if completely empty (UsedRange is A1 with no value)
+            used = sheet1.UsedRange
+            if used.Rows.Count == 1 and used.Columns.Count == 1 and str(sheet1.Cells(1, 1).Value) in ("", "None"):
+                xl.DisplayAlerts = False
+                sheet1.Delete()
+                xl.DisplayAlerts = False
+        except Exception:
+            pass  # Sheet1 not present or not empty — leave it
         if os.path.exists(out_xlsm):
             os.remove(out_xlsm)
         wb.SaveAs(out_xlsm, FileFormat=XLSM)

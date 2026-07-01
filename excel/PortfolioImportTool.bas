@@ -639,6 +639,21 @@ Public Function ExtractJSONValue(json As String, key As String, defaultValue As 
 End Function
 
 ' =========================================================================
+' FROM-SHEET WRAPPERS (collect + build in one VBA call; avoids COM Dictionary
+' marshalling issues when called from Python via xl.Run)
+' =========================================================================
+
+Public Function BuildConvertYAMLFromSheet(sheetName As String) As String
+    Dim ws As Worksheet: Set ws = ThisWorkbook.Worksheets(sheetName)
+    BuildConvertYAMLFromSheet = BuildConvertYAML(CollectValues(ws, FieldsConvert()))
+End Function
+
+Public Function BuildImportYAMLFromSheet(sheetName As String) As String
+    Dim ws As Worksheet: Set ws = ThisWorkbook.Worksheets(sheetName)
+    BuildImportYAMLFromSheet = BuildImportYAML(CollectValues(ws, FieldsImport()))
+End Function
+
+' =========================================================================
 ' ERROR HANDLING
 ' =========================================================================
 
