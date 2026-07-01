@@ -143,8 +143,8 @@ Public Function FieldsImport() As Variant
         "Paths|sg_path|SG Path|text|C:\Program Files\Moody's\SG\10.5.0||", _
         "Paths|licence_path|Licence Path|text|||", _
         "Paths|rics_path|RICSFormatData Path|text|RICS_Files||", _
-        "Paths|output_path|RICS Sim Output Path|text|output\Portfolio_Import.bhs||", _
-        "Paths|load_sim_path|Load Existing RICS Sim Path|text|||", _
+        "Paths|output_path|RICSSimOutput Path|text|output\Portfolio_Import.bhs||", _
+        "Paths|load_sim_path|LoadExistingRICSSim Path|text|||", _
         "Settings|load_sim|Load Existing Sim|bool|FALSE||", _
         "Settings|keep_existing_portfolios|Keep Existing Portfolios|bool|FALSE||", _
         "Settings|import_economies|Import Economies|bool|TRUE||", _
@@ -176,6 +176,22 @@ Private Function SgSub(sg As String, sub_ As String) As String
     SgSub = sg & "\" & sub_
 End Function
 
+' Resolve a path for the config/exe. Absolute paths (X:\... or \\UNC) are kept
+' as-is; relative paths are made absolute against the workbook's folder, so the
+' tool works regardless of the working directory Excel launches the exe from.
+' (When the workbook is unsaved, GetLocalWorkbookPath is "" and the relative
+' path is returned unchanged.)
+Private Function ResolvePath(p As String) As String
+    Dim s As String: s = Trim(p)
+    If s = "" Then Exit Function
+    If Left(s, 2) = "\\" Or (Len(s) >= 2 And Mid(s, 2, 1) = ":") Then
+        ResolvePath = s: Exit Function
+    End If
+    If Left(s, 2) = ".\" Then s = Mid(s, 3)
+    Dim base As String: base = GetLocalWorkbookPath()
+    If base = "" Then ResolvePath = s Else ResolvePath = base & "\" & s
+End Function
+
 ' =========================================================================
 ' YAML BUILDERS
 ' =========================================================================
@@ -186,8 +202,8 @@ Public Function BuildConvertYAML(v As Object) As String
     y = y & "RICS_version: """ & v("RICS_version") & """" & nl
     y = y & "GCorr_Corporate_version: """ & v("GCorr_Corporate_version") & """" & nl & nl
     y = y & "converter_paths:" & nl
-    y = y & "  data_path: " & Q(v("data_path")) & nl
-    y = y & "  output_path: " & Q(v("output_path")) & nl & nl
+    y = y & "  data_path: " & Q(ResolvePath(v("data_path"))) & nl
+    y = y & "  output_path: " & Q(ResolvePath(v("output_path"))) & nl & nl
     y = y & "converter_data_types:" & nl & "  granular:" & nl
     Dim parts() As String, i As Long
     parts = Split(v("granular"), ",")
@@ -214,7 +230,7 @@ Public Function BuildConvertYAML(v As Object) As String
     y = y & "file_types:" & nl
     y = y & "  granular: [""issuers"",""factors"",""pds"",""instruments"",""lgd"",""cashflows"",""couponPayments"",""laggard""]" & nl
     y = y & "  portfolio: [""Portfolios"",""Holdings""]" & nl & nl
-    y = y & "moodys_internal_data: ""MoodysInternalData""" & nl
+    y = y & "moodys_internal_data: " & Q(ResolvePath("MoodysInternalData")) & nl
     y = y & "GCorr_Corporate: ""GCorr{version}""" & nl
     y = y & "GCorr_files:" & nl
     y = y & "  file_name: ""GCorr {version} Corp R-Squared Factors""" & nl
@@ -232,7 +248,7 @@ End Function
 Public Function BuildImportYAML(ws As Worksheet) As String
     Dim y As String, nl As String: nl = vbLf
     Dim v As Object: Set v = CollectValues(ws, FieldsImport())
-    Dim sg As String: sg = v("sg_path")
+    Dim sg As String: sg = ResolvePath(v("sg_path"))
 
     ' --- paths ---
     y = "paths:" & nl
@@ -240,10 +256,10 @@ Public Function BuildImportYAML(ws As Worksheet) As String
     y = y & "  assembly_path: " & Q(sg) & nl
     y = y & "  data_path: " & Q(SgSub(sg, "Data")) & nl
     y = y & "  model_path: " & Q(SgSub(sg, "Models")) & nl
-    y = y & "  licence_path: " & Q(v("licence_path")) & nl
-    y = y & "  rics_path: " & Q(v("rics_path")) & nl
-    y = y & "  output_path: " & Q(v("output_path")) & nl
-    y = y & "  load_sim_path: " & Q(v("load_sim_path")) & nl & nl
+    y = y & "  licence_path: " & Q(ResolvePath(v("licence_path"))) & nl
+    y = y & "  rics_path: " & Q(ResolvePath(v("rics_path"))) & nl
+    y = y & "  output_path: " & Q(ResolvePath(v("output_path"))) & nl
+    y = y & "  load_sim_path: " & Q(ResolvePath(v("load_sim_path"))) & nl & nl
 
     ' --- multiple_gcp_types ---
     y = y & BuildGCPTypesYAML(ws) & nl
@@ -422,7 +438,10 @@ Public Sub CreateConfigSheets()
     nextRow = nextRow + 1   ' blank separator row before grids
     BuildImportGrids wsImp, nextRow
     AddRunButton GetOrCreateSheet(CONVERT_CONFIG_SHEET), "Run Convert", "RunConvert"
-    AddRunButton wsImp, "Run Import", "RunImport"
+    AddRunButton wsImp, "Run Import", "RunImport", 62
+    ' Left-align all cells on both config tabs
+    GetOrCreateSheet(CONVERT_CONFIG_SHEET).Columns("A:F").HorizontalAlignment = xlLeft
+    wsImp.Columns("A:F").HorizontalAlignment = xlLeft
 End Sub
 
 ' =========================================================================
@@ -457,7 +476,7 @@ End Sub
 ' A. Merge Data — MULTIPLE GCP TYPES (A=Base Folder, B=Sub-Types [yellow])
 Private Function BuildGCPGrid(ws As Worksheet, startRow As Long) As Long
     Dim r As Long: r = startRow
-    GridSectionHeader ws, r, "MULTIPLE GCP TYPES": r = r + 1
+    GridSectionHeader ws, r, "Merge Data Settings": r = r + 1
     ws.Cells(r, 1).Value = "Base Folder"
     ws.Cells(r, 2).Value = "Sub-Types to Merge (comma-separated, leave blank to skip)"
     GridColumnHeader ws, r, 2: r = r + 1
@@ -479,7 +498,7 @@ End Function
 ' (A=Output Types [yellow], B=Selection [yellow]). 8 EMPTY rows (empty => no outputs).
 Private Function BuildOutputGrid(ws As Worksheet, startRow As Long) As Long
     Dim r As Long: r = startRow
-    GridSectionHeader ws, r, "ISSUER/BOND OUTPUT CONFIGURATION": r = r + 1
+    GridSectionHeader ws, r, "Issuer/Bond Output Settings": r = r + 1
     ws.Cells(r, 1).Value = "Output Types"
     ws.Cells(r, 2).Value = "Selection (comma-separated, one per output type)"
     GridColumnHeader ws, r, 2: r = r + 1
@@ -492,6 +511,18 @@ Private Function BuildOutputGrid(ws As Worksheet, startRow As Long) As Long
     Dim f As Long: f = ws.Range("imp_out_first").Row
     Dim l As Long: l = ws.Range("imp_out_last").Row
     ws.Range(ws.Cells(f, 1), ws.Cells(l, 2)).Interior.Color = RGB(255, 255, 200)
+    ' Dropdown validation (match old addin): output types and selection lists
+    Dim k As Long
+    For k = f To l
+        On Error Resume Next
+        ws.Cells(k, 1).Validation.Delete
+        ws.Cells(k, 1).Validation.Add Type:=xlValidateList, _
+            Formula1:="CreditClass,DefaultFlag,TotalValue,Price,Interest,Principal,Recovery,TotalReturn,TotalReturnIndex"
+        ws.Cells(k, 2).Validation.Delete
+        ws.Cells(k, 2).Validation.Add Type:=xlValidateList, _
+            Formula1:="All,GC,GCPD,GCCRE,GCCREPD,GCRETAIL,GCRETAILPD,MBS"
+        On Error GoTo 0
+    Next k
     BuildOutputGrid = r
 End Function
 
@@ -499,7 +530,7 @@ End Function
 ' (A=Type, B=Enabled [bool], C=Currency, D=Weight Definition). B:D yellow.
 Private Function BuildStructuredGrid(ws As Worksheet, startRow As Long) As Long
     Dim r As Long: r = startRow
-    GridSectionHeader ws, r, "STRUCTURED PORTFOLIOS PARAMETERS": r = r + 1
+    GridSectionHeader ws, r, "Structured Portfolios Settings": r = r + 1
     ws.Cells(r, 1).Value = "Portfolio Type"
     ws.Cells(r, 2).Value = "Enabled (TRUE/FALSE)"
     ws.Cells(r, 3).Value = "Currency"
@@ -531,7 +562,7 @@ End Function
 ' (A=Name, B=Portfolios to Merge, C=Currency, D=Weight Definition). A:D yellow. 7 empty rows.
 Private Function BuildUserDefinedGrid(ws As Worksheet, startRow As Long) As Long
     Dim r As Long: r = startRow
-    GridSectionHeader ws, r, "USER DEFINED COMBINED PORTFOLIOS": r = r + 1
+    GridSectionHeader ws, r, "User Defined Combined Portfolios Settings": r = r + 1
     ws.Cells(r, 1).Value = "Portfolio Name"
     ws.Cells(r, 2).Value = "Portfolios to Merge (comma-separated)"
     ws.Cells(r, 3).Value = "Currency"
@@ -554,7 +585,7 @@ Private Sub RunTool(sheetName As String, fields As Variant, yaml As String, _
                     resultsName As String, logName As String, resultsSheet As String)
     Dim ws As Worksheet: Set ws = ThisWorkbook.Worksheets(sheetName)
     Dim v As Object: Set v = CollectValues(ws, fields)
-    Dim exePath As String: exePath = v("exe_path")
+    Dim exePath As String: exePath = ResolvePath(v("exe_path"))
     If Dir(exePath) = "" Then ShowError "Executable not found: " & exePath: Exit Sub
     Dim exeDir As String: exeDir = Left(exePath, InStrRev(exePath, "\") - 1)
     Dim cfg As String: cfg = Environ("TEMP") & "\" & resultsName & ".config.yaml"
@@ -579,7 +610,7 @@ End Sub
 Public Sub ViewConvertLog()
     On Error GoTo ErrorHandler
     Dim ws As Worksheet: Set ws = ThisWorkbook.Worksheets(CONVERT_CONFIG_SHEET)
-    Dim exePath As String: exePath = Trim(CStr(ws.Range("row_exe_path").Value))
+    Dim exePath As String: exePath = ResolvePath(Trim(CStr(ws.Range("row_exe_path").Value)))
     Dim exeDir As String: exeDir = Left(exePath, InStrRev(exePath, "\") - 1)
     Dim logPath As String: logPath = exeDir & "\" & CONVERT_LOG
     If Dir(logPath) <> "" Then
@@ -595,7 +626,7 @@ End Sub
 Public Sub ViewImportLog()
     On Error GoTo ErrorHandler
     Dim ws As Worksheet: Set ws = ThisWorkbook.Worksheets(IMPORT_CONFIG_SHEET)
-    Dim exePath As String: exePath = Trim(CStr(ws.Range("row_exe_path").Value))
+    Dim exePath As String: exePath = ResolvePath(Trim(CStr(ws.Range("row_exe_path").Value)))
     Dim exeDir As String: exeDir = Left(exePath, InStrRev(exePath, "\") - 1)
     Dim logPath As String: logPath = exeDir & "\" & IMPORT_LOG
     If Dir(logPath) <> "" Then
@@ -722,7 +753,7 @@ Public Function GetOrCreateSheet(sheetName As String) As Worksheet
     End If
 End Function
 
-Public Sub AddRunButton(ws As Worksheet, caption As String, macroName As String)
+Public Sub AddRunButton(ws As Worksheet, caption As String, macroName As String, Optional targetRow As Long = 0)
     On Error Resume Next
     ' Remove existing button with same caption
     Dim shp As Shape
@@ -731,8 +762,12 @@ Public Sub AddRunButton(ws As Worksheet, caption As String, macroName As String)
     Next shp
 
     Dim buttonRow As Long
-    buttonRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).row + 1
-    If buttonRow < 28 Then buttonRow = 28
+    If targetRow > 0 Then
+        buttonRow = targetRow
+    Else
+        buttonRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).row + 1
+        If buttonRow < 28 Then buttonRow = 28
+    End If
 
     Dim btn As Button
     Set btn = ws.Buttons.Add(ws.Cells(buttonRow, 1).Left, ws.Cells(buttonRow, 1).Top, 250, 40)
