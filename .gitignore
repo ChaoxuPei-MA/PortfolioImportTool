@@ -20,8 +20,9 @@ RICS_Files/
 output/
 configs/*.local.yaml
 
-# Distribution package (built by build/make_touser.py — large exes)
-ToUser/
+# Distribution package (built by build/make_touser.py — large exes).
+# Anchored to repo root so it does NOT also match build/touser/ (case-insensitive FS).
+/ToUser/
 
 # Local results/logs
 *.log

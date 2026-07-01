@@ -1,0 +1,43 @@
+# Import config for Importer.exe (run from the tool folder):
+#   dist\Importer.exe configs\import_config.yaml
+# REQUIRES a Moody's SG installation + a valid licence on this machine.
+# Edit the SG paths and licence to match your install.
+
+paths:
+  # EDIT: your Moody's SG install (version folder may differ from 10.5.0)
+  runtime_config: "C:/Program Files/Moody's/SG/10.5.0/MoodysAnalytics.SG.UI.runtimeconfig.json"
+  assembly_path:  "C:/Program Files/Moody's/SG/10.5.0"
+  data_path:      "C:/Program Files/Moody's/SG/10.5.0/Data"
+  model_path:     "C:/Program Files/Moody's/SG/10.5.0/Models"
+  licence_path:   "C:/path/to/your/Moodys_Licence.licx"   # EDIT
+  rics_path:      "output"                    # the RICS files produced by Convert
+  output_path:    "output/Portfolio_Import.bhs"           # simulation to write
+  load_sim_path:  ""
+
+multiple_gcp_types: {}
+
+structured_portfolios_parameters:
+  agency_cmbs:                  [false, 'USD', 'MarketValue']
+  structured_clo:               [false, 'USD', 'MarketValue']
+  structured_cre:               [false, 'USD', 'MarketValue']
+  structured_retail:            [false, 'USD', 'MarketValue']
+  all_structured_selected:      [false, 'USD', 'MarketValue']
+  all_structured:               [false, 'USD', 'MarketValue']
+  all_structured_nonstructured: [false, 'USD', 'MarketValue']
+
+userDefined_combined_structured_nonstructured_portfolios: {}
+
+settings:
+  load_sim: false
+  keep_existing_portfolios: false
+  import_economies: true
+  import_transition_matrices: true
+  import_mpr_models: true
+  import_zscore_models: true
+  base_date: "2025-06-30"        # EDIT: simulation base date
+  base_economy: "USD"            # EDIT: base economy
+
+# Empty => no issuer/bond outputs are added.
+Issuer_Bond_Output:
+  outputs: []
+  selection: []
