@@ -50,7 +50,8 @@ End Function
 
 ' Lays out the sheet from the field table. Stores each input field's row as a
 ' defined Name "row_<key>" so CollectValues can read it back.
-Public Sub BuildConfigSheet(ws As Worksheet, fields As Variant, title As String)
+' Returns the first free row after layout (so grids can continue below it).
+Public Function BuildConfigSheet(ws As Worksheet, fields As Variant, title As String) As Long
     ws.Cells.Clear
     ws.Range("A1").Value = title
     ws.Range("A1").Font.Bold = True
@@ -80,7 +81,8 @@ ContinueLoop:
     Next i
     ws.Columns("A:A").ColumnWidth = 42
     ws.Columns("B:B").ColumnWidth = 80
-End Sub
+    BuildConfigSheet = row
+End Function
 
 Private Sub ApplyValidation(cell As Range, vtype As String, valid As String)
     On Error Resume Next
@@ -143,17 +145,14 @@ Public Function FieldsImport() As Variant
         "Paths|rics_path|RICSFormatData Path|text|RICS_Files||", _
         "Paths|output_path|RICS Sim Output Path|text|output\Portfolio_Import.bhs||", _
         "Paths|load_sim_path|Load Existing RICS Sim Path|text|||", _
-        "Settings|load_sim|Load existing sim|bool|FALSE||", _
-        "Settings|keep_existing_portfolios|Keep existing portfolios|bool|FALSE||", _
-        "Settings|import_economies|Import economies|bool|TRUE||", _
-        "Settings|import_transition_matrices|Import transition matrices|bool|TRUE||", _
-        "Settings|import_mpr_models|Import MPR models|bool|TRUE||", _
-        "Settings|import_zscore_models|Import Z-Score models|bool|TRUE||", _
-        "Settings|base_date|Base Date (YYYY-MM-DD)|text|2025-06-30||", _
-        "Settings|base_economy|Base Economy|text|USD||", _
-        "Merge Data|merge_gc|GC base merge (comma sub-folders)|text|||", _
-        "Issuer/Bond Output|outputs|Output types (comma)|text|||", _
-        "Issuer/Bond Output|selection|Selection per type (semicolon-separated, comma within)|text|||" _
+        "Settings|load_sim|Load Existing Sim|bool|FALSE||", _
+        "Settings|keep_existing_portfolios|Keep Existing Portfolios|bool|FALSE||", _
+        "Settings|import_economies|Import Economies|bool|TRUE||", _
+        "Settings|import_transition_matrices|Import Transition Matrices|bool|TRUE||", _
+        "Settings|import_mpr_models|Import MPR Models|bool|TRUE||", _
+        "Settings|import_zscore_models|Import Z-Score Models|bool|TRUE||", _
+        "Settings|base_date|Base Date|text|2025-06-30||", _
+        "Settings|base_economy|Base Economy|text|USD||" _
     )
 End Function
 
@@ -228,9 +227,14 @@ Public Function BuildConvertYAML(v As Object) As String
     BuildConvertYAML = y
 End Function
 
-Public Function BuildImportYAML(v As Object) As String
+' Combines the simple field-table values (via CollectValues) with the 4 grid
+' sections (read back via their recorded Names) into the importer YAML.
+Public Function BuildImportYAML(ws As Worksheet) As String
     Dim y As String, nl As String: nl = vbLf
+    Dim v As Object: Set v = CollectValues(ws, FieldsImport())
     Dim sg As String: sg = v("sg_path")
+
+    ' --- paths ---
     y = "paths:" & nl
     y = y & "  runtime_config: " & Q(SgRuntimeConfig(sg)) & nl
     y = y & "  assembly_path: " & Q(sg) & nl
@@ -240,21 +244,17 @@ Public Function BuildImportYAML(v As Object) As String
     y = y & "  rics_path: " & Q(v("rics_path")) & nl
     y = y & "  output_path: " & Q(v("output_path")) & nl
     y = y & "  load_sim_path: " & Q(v("load_sim_path")) & nl & nl
-    ' merge data
-    y = y & "multiple_gcp_types:" & nl
-    Dim merge As String: merge = v("merge_gc")
-    If Trim(merge) <> "" Then
-        y = y & "  GC:" & nl
-        Dim mp() As String, i As Long: mp = Split(merge, ",")
-        For i = LBound(mp) To UBound(mp)
-            If Trim(mp(i)) <> "" Then y = y & "    - " & Trim(mp(i)) & nl
-        Next i
-    Else
-        y = y & "  {}" & nl
-    End If
-    y = y & nl
-    y = y & "structured_portfolios_parameters: {}" & nl & nl
-    y = y & "userDefined_combined_structured_nonstructured_portfolios: {}" & nl & nl
+
+    ' --- multiple_gcp_types ---
+    y = y & BuildGCPTypesYAML(ws) & nl
+
+    ' --- structured_portfolios_parameters ---
+    y = y & BuildStructuredPortfoliosYAML(ws) & nl
+
+    ' --- userDefined_combined_structured_nonstructured_portfolios ---
+    y = y & BuildUserDefinedPortfoliosYAML(ws) & nl
+
+    ' --- settings ---
     y = y & "settings:" & nl
     y = y & "  load_sim: " & LCase(v("load_sim")) & nl
     y = y & "  keep_existing_portfolios: " & LCase(v("keep_existing_portfolios")) & nl
@@ -264,31 +264,149 @@ Public Function BuildImportYAML(v As Object) As String
     y = y & "  import_zscore_models: " & LCase(v("import_zscore_models")) & nl
     y = y & "  base_date: """ & v("base_date") & """" & nl
     y = y & "  base_economy: """ & v("base_economy") & """" & nl & nl
-    ' Issuer/Bond Output - empty inputs => empty lists => no outputs added
-    y = y & "Issuer_Bond_Output:" & nl
-    y = y & "  outputs: [" & QuoteCsv(v("outputs")) & "]" & nl
-    y = y & "  selection: [" & SelectionYaml(v("selection")) & "]" & nl
+
+    ' --- Issuer_Bond_Output ---
+    y = y & BuildIssuerBondOutputYAML(ws)
+
     BuildImportYAML = y
 End Function
 
-Private Function QuoteCsv(s As String) As String  ' "A","B"
-    Dim p() As String, i As Long, out As String
-    If Trim(s) = "" Then Exit Function
-    p = Split(s, ",")
-    For i = LBound(p) To UBound(p)
-        If Trim(p(i)) <> "" Then out = out & IIf(out = "", "", ",") & """" & Trim(p(i)) & """"
-    Next i
-    QuoteCsv = out
+Private Function GridFirstRow(ws As Worksheet, nm As String) As Long
+    On Error Resume Next
+    GridFirstRow = ws.Range(nm).Row
+    On Error GoTo 0
 End Function
 
-Private Function SelectionYaml(s As String) As String  ' "x;y,z" -> ["x"],["y","z"]
-    Dim groups() As String, i As Long, out As String
-    If Trim(s) = "" Then Exit Function
-    groups = Split(s, ";")
-    For i = LBound(groups) To UBound(groups)
-        If Trim(groups(i)) <> "" Then out = out & IIf(out = "", "", ",") & "[" & QuoteCsv(groups(i)) & "]"
-    Next i
-    SelectionYaml = out
+Private Function BuildGCPTypesYAML(ws As Worksheet) As String
+    Dim yaml As String: yaml = "multiple_gcp_types:"
+    Dim f As Long, l As Long, r As Long
+    f = GridFirstRow(ws, "imp_gcp_first")
+    l = GridFirstRow(ws, "imp_gcp_last")
+    If f = 0 Or l = 0 Then BuildGCPTypesYAML = yaml & " {}" & vbLf: Exit Function
+    Dim hasTypes As Boolean: hasTypes = False
+    For r = f To l
+        Dim baseFolder As String, subTypes As String
+        baseFolder = Trim(CStr(ws.Cells(r, 1).Value))
+        subTypes = Trim(CStr(ws.Cells(r, 2).Value))
+        If baseFolder <> "" And subTypes <> "" Then
+            If Not hasTypes Then yaml = yaml & vbLf
+            hasTypes = True
+            yaml = yaml & "  " & baseFolder & ":" & vbLf
+            Dim parts() As String, i As Long
+            parts = Split(subTypes, ",")
+            For i = LBound(parts) To UBound(parts)
+                If Trim(parts(i)) <> "" Then yaml = yaml & "    - " & Trim(parts(i)) & vbLf
+            Next i
+        End If
+    Next r
+    If Not hasTypes Then yaml = yaml & " {}" & vbLf
+    BuildGCPTypesYAML = yaml
+End Function
+
+Private Function BuildStructuredPortfoliosYAML(ws As Worksheet) As String
+    Dim yaml As String: yaml = "structured_portfolios_parameters:" & vbLf
+    Dim f As Long, l As Long, r As Long
+    f = GridFirstRow(ws, "imp_struct_first")
+    l = GridFirstRow(ws, "imp_struct_last")
+    If f = 0 Or l = 0 Then BuildStructuredPortfoliosYAML = yaml: Exit Function
+    For r = f To l
+        Dim pType As String, enabled As String, ccy As String, wt As String
+        pType = Trim(CStr(ws.Cells(r, 1).Value))
+        enabled = Trim(CStr(ws.Cells(r, 2).Value))
+        ccy = Trim(CStr(ws.Cells(r, 3).Value))
+        wt = Trim(CStr(ws.Cells(r, 4).Value))
+        If pType <> "" Then
+            If ccy = "" Then ccy = "USD"
+            If wt = "" Then wt = "MarketValue"
+            Dim boolVal As String
+            boolVal = IIf(UCase(enabled) = "TRUE", "true", "false")
+            yaml = yaml & "  " & pType & ": [" & boolVal & "," & Chr(39) & ccy & Chr(39) & "," & Chr(39) & wt & Chr(39) & "]" & vbLf
+        End If
+    Next r
+    BuildStructuredPortfoliosYAML = yaml
+End Function
+
+Private Function BuildUserDefinedPortfoliosYAML(ws As Worksheet) As String
+    Dim yaml As String: yaml = "userDefined_combined_structured_nonstructured_portfolios:" & vbLf
+    Dim f As Long, l As Long, r As Long
+    f = GridFirstRow(ws, "imp_udef_first")
+    l = GridFirstRow(ws, "imp_udef_last")
+    If f = 0 Or l = 0 Then BuildUserDefinedPortfoliosYAML = yaml & " {}" & vbLf: Exit Function
+    Dim hasEntries As Boolean: hasEntries = False
+    For r = f To l
+        Dim pName As String, toMerge As String, ccy As String, wt As String
+        pName = Trim(CStr(ws.Cells(r, 1).Value))
+        toMerge = Trim(CStr(ws.Cells(r, 2).Value))
+        ccy = Trim(CStr(ws.Cells(r, 3).Value))
+        wt = Trim(CStr(ws.Cells(r, 4).Value))
+        If pName <> "" And toMerge <> "" Then
+            hasEntries = True
+            If ccy = "" Then ccy = "USD"
+            If wt = "" Then wt = "MarketValue"
+            Dim pArr() As String, i As Long
+            pArr = Split(toMerge, ",")
+            Dim pList As String: pList = "["
+            For i = LBound(pArr) To UBound(pArr)
+                Dim p As String: p = Trim(CStr(pArr(i)))
+                If p <> "" Then
+                    If pList <> "[" Then pList = pList & ", "
+                    pList = pList & """" & p & """"
+                End If
+            Next i
+            pList = pList & "]"
+            yaml = yaml & "  " & pName & ": [" & pList & "," & Chr(39) & ccy & Chr(39) & "," & Chr(39) & wt & Chr(39) & "]" & vbLf
+        End If
+    Next r
+    If Not hasEntries Then yaml = yaml & " {}" & vbLf
+    BuildUserDefinedPortfoliosYAML = yaml
+End Function
+
+Private Function BuildIssuerBondOutputYAML(ws As Worksheet) As String
+    Dim yaml As String: yaml = "Issuer_Bond_Output:" & vbLf
+    Dim f As Long, l As Long, r As Long
+    f = GridFirstRow(ws, "imp_out_first")
+    l = GridFirstRow(ws, "imp_out_last")
+    If f = 0 Or l = 0 Then
+        BuildIssuerBondOutputYAML = yaml & "  outputs: []" & vbLf & "  selection: []" & vbLf
+        Exit Function
+    End If
+    Dim outputList As String: outputList = "["
+    Dim selectionList As String: selectionList = "["
+    Dim hasData As Boolean: hasData = False
+    For r = f To l
+        Dim outputName As String, selStr As String
+        outputName = Trim(CStr(ws.Cells(r, 1).Value))
+        selStr = Trim(CStr(ws.Cells(r, 2).Value))
+        If outputName <> "" Then
+            hasData = True
+            If outputList <> "[" Then outputList = outputList & ", "
+            outputList = outputList & """" & outputName & """"
+            If selectionList <> "[" Then selectionList = selectionList & ", "
+            If selStr = "" Then
+                selectionList = selectionList & "[]"
+            Else
+                Dim selArr() As String, j As Long
+                selArr = Split(selStr, ",")
+                Dim selBlock As String: selBlock = "["
+                For j = LBound(selArr) To UBound(selArr)
+                    Dim sel As String: sel = Trim(CStr(selArr(j)))
+                    If sel <> "" Then
+                        If selBlock <> "[" Then selBlock = selBlock & ", "
+                        selBlock = selBlock & """" & sel & """"
+                    End If
+                Next j
+                selectionList = selectionList & selBlock & "]"
+            End If
+        End If
+    Next r
+    ' FIX vs old addin: empty grid => empty lists, no CreditClass/TotalValue fallback
+    If Not hasData Then
+        yaml = yaml & "  outputs: []" & vbLf & "  selection: []" & vbLf
+    Else
+        yaml = yaml & "  outputs: " & outputList & "]" & vbLf
+        yaml = yaml & "  selection: " & selectionList & "]" & vbLf
+    End If
+    BuildIssuerBondOutputYAML = yaml
 End Function
 
 ' =========================================================================
@@ -296,11 +414,140 @@ End Function
 ' =========================================================================
 
 Public Sub CreateConfigSheets()
-    BuildConfigSheet GetOrCreateSheet(CONVERT_CONFIG_SHEET), FieldsConvert(), "Portfolio Import Tool - Convert"
-    BuildConfigSheet GetOrCreateSheet(IMPORT_CONFIG_SHEET), FieldsImport(), "Portfolio Import Tool - Import"
+    Dim discard As Long
+    discard = BuildConfigSheet(GetOrCreateSheet(CONVERT_CONFIG_SHEET), FieldsConvert(), "Portfolio Import Tool - Convert")
+    Dim wsImp As Worksheet: Set wsImp = GetOrCreateSheet(IMPORT_CONFIG_SHEET)
+    Dim nextRow As Long
+    nextRow = BuildConfigSheet(wsImp, FieldsImport(), "Portfolio Import Tool - Import")
+    nextRow = nextRow + 1   ' blank separator row before grids
+    BuildImportGrids wsImp, nextRow
     AddRunButton GetOrCreateSheet(CONVERT_CONFIG_SHEET), "Run Convert", "RunConvert"
-    AddRunButton GetOrCreateSheet(IMPORT_CONFIG_SHEET), "Run Import", "RunImport"
+    AddRunButton wsImp, "Run Import", "RunImport"
 End Sub
+
+' =========================================================================
+' IMPORT GRID BUILDERS  (4 multi-column sections, dynamic Names)
+' Section order on sheet: A. GCP, B. Output, C. Structured, D. UserDefined.
+' Each grid records its data-row range as sheet-scoped defined Names so the
+' YAML builder reads it back dynamically (no fixed row constants).
+' =========================================================================
+
+Private Sub BuildImportGrids(ws As Worksheet, startRow As Long)
+    Dim r As Long: r = startRow
+    r = BuildGCPGrid(ws, r)
+    r = r + 1
+    r = BuildOutputGrid(ws, r)
+    r = r + 1
+    r = BuildStructuredGrid(ws, r)
+    r = r + 1
+    r = BuildUserDefinedGrid(ws, r)
+End Sub
+
+Private Sub GridSectionHeader(ws As Worksheet, r As Long, title As String)
+    ws.Cells(r, 1).Value = title
+    ws.Cells(r, 1).Font.Bold = True
+    ws.Cells(r, 1).Interior.Color = RGB(217, 225, 242)
+End Sub
+
+Private Sub GridColumnHeader(ws As Worksheet, r As Long, lastCol As Long)
+    ws.Range(ws.Cells(r, 1), ws.Cells(r, lastCol)).Font.Bold = True
+    ws.Range(ws.Cells(r, 1), ws.Cells(r, lastCol)).Interior.Color = RGB(242, 242, 242)
+End Sub
+
+' A. Merge Data — MULTIPLE GCP TYPES (A=Base Folder, B=Sub-Types [yellow])
+Private Function BuildGCPGrid(ws As Worksheet, startRow As Long) As Long
+    Dim r As Long: r = startRow
+    GridSectionHeader ws, r, "MULTIPLE GCP TYPES": r = r + 1
+    ws.Cells(r, 1).Value = "Base Folder"
+    ws.Cells(r, 2).Value = "Sub-Types to Merge (comma-separated, leave blank to skip)"
+    GridColumnHeader ws, r, 2: r = r + 1
+    ws.Names.Add Name:="imp_gcp_first", RefersTo:="=" & ws.Name & "!$A$" & r
+    ws.Cells(r, 1).Value = "GC":          ws.Cells(r, 2).Value = "GCP_CLO": r = r + 1
+    ws.Cells(r, 1).Value = "GCCRE":       ws.Cells(r, 2).Value = "": r = r + 1
+    ws.Cells(r, 1).Value = "GCRETAIL":    ws.Cells(r, 2).Value = "": r = r + 1
+    ws.Cells(r, 1).Value = "GCPD":        ws.Cells(r, 2).Value = "": r = r + 1
+    ws.Cells(r, 1).Value = "GCCREPD":     ws.Cells(r, 2).Value = "": r = r + 1
+    ws.Cells(r, 1).Value = "GCRETAILPD":  ws.Cells(r, 2).Value = "": r = r + 1
+    ws.Names.Add Name:="imp_gcp_last", RefersTo:="=" & ws.Name & "!$A$" & (r - 1)
+    Dim f As Long: f = ws.Range("imp_gcp_first").Row
+    Dim l As Long: l = ws.Range("imp_gcp_last").Row
+    ws.Range(ws.Cells(f, 2), ws.Cells(l, 2)).Interior.Color = RGB(255, 255, 200)
+    BuildGCPGrid = r
+End Function
+
+' B. Issuer/Bond Output — ISSUER/BOND OUTPUT CONFIGURATION
+' (A=Output Types [yellow], B=Selection [yellow]). 8 EMPTY rows (empty => no outputs).
+Private Function BuildOutputGrid(ws As Worksheet, startRow As Long) As Long
+    Dim r As Long: r = startRow
+    GridSectionHeader ws, r, "ISSUER/BOND OUTPUT CONFIGURATION": r = r + 1
+    ws.Cells(r, 1).Value = "Output Types"
+    ws.Cells(r, 2).Value = "Selection (comma-separated, one per output type)"
+    GridColumnHeader ws, r, 2: r = r + 1
+    ws.Names.Add Name:="imp_out_first", RefersTo:="=" & ws.Name & "!$A$" & r
+    Dim j As Long
+    For j = 1 To 8
+        ws.Cells(r, 1).Value = "": ws.Cells(r, 2).Value = "": r = r + 1
+    Next j
+    ws.Names.Add Name:="imp_out_last", RefersTo:="=" & ws.Name & "!$A$" & (r - 1)
+    Dim f As Long: f = ws.Range("imp_out_first").Row
+    Dim l As Long: l = ws.Range("imp_out_last").Row
+    ws.Range(ws.Cells(f, 1), ws.Cells(l, 2)).Interior.Color = RGB(255, 255, 200)
+    BuildOutputGrid = r
+End Function
+
+' C. Structured Portfolios — STRUCTURED PORTFOLIOS PARAMETERS
+' (A=Type, B=Enabled [bool], C=Currency, D=Weight Definition). B:D yellow.
+Private Function BuildStructuredGrid(ws As Worksheet, startRow As Long) As Long
+    Dim r As Long: r = startRow
+    GridSectionHeader ws, r, "STRUCTURED PORTFOLIOS PARAMETERS": r = r + 1
+    ws.Cells(r, 1).Value = "Portfolio Type"
+    ws.Cells(r, 2).Value = "Enabled (TRUE/FALSE)"
+    ws.Cells(r, 3).Value = "Currency"
+    ws.Cells(r, 4).Value = "Weight Definition"
+    GridColumnHeader ws, r, 4: r = r + 1
+    ws.Names.Add Name:="imp_struct_first", RefersTo:="=" & ws.Name & "!$A$" & r
+    ws.Cells(r,1).Value="agency_cmbs":                  ws.Cells(r,2).Value="FALSE": ws.Cells(r,3).Value="USD": ws.Cells(r,4).Value="MarketValue": r=r+1
+    ws.Cells(r,1).Value="structured_clo":               ws.Cells(r,2).Value="FALSE": ws.Cells(r,3).Value="USD": ws.Cells(r,4).Value="MarketValue": r=r+1
+    ws.Cells(r,1).Value="structured_cre":               ws.Cells(r,2).Value="FALSE": ws.Cells(r,3).Value="USD": ws.Cells(r,4).Value="MarketValue": r=r+1
+    ws.Cells(r,1).Value="structured_retail":            ws.Cells(r,2).Value="FALSE": ws.Cells(r,3).Value="USD": ws.Cells(r,4).Value="MarketValue": r=r+1
+    ws.Cells(r,1).Value="all_structured_selected":      ws.Cells(r,2).Value="FALSE": ws.Cells(r,3).Value="USD": ws.Cells(r,4).Value="MarketValue": r=r+1
+    ws.Cells(r,1).Value="all_structured":               ws.Cells(r,2).Value="FALSE": ws.Cells(r,3).Value="USD": ws.Cells(r,4).Value="MarketValue": r=r+1
+    ws.Cells(r,1).Value="all_structured_nonstructured": ws.Cells(r,2).Value="FALSE": ws.Cells(r,3).Value="USD": ws.Cells(r,4).Value="MarketValue": r=r+1
+    ws.Names.Add Name:="imp_struct_last", RefersTo:="=" & ws.Name & "!$A$" & (r - 1)
+    Dim f As Long: f = ws.Range("imp_struct_first").Row
+    Dim l As Long: l = ws.Range("imp_struct_last").Row
+    Dim k As Long
+    For k = f To l
+        On Error Resume Next
+        ws.Cells(k, 2).Validation.Delete
+        ws.Cells(k, 2).Validation.Add Type:=xlValidateList, Formula1:="TRUE,FALSE"
+        On Error GoTo 0
+    Next k
+    ws.Range(ws.Cells(f, 2), ws.Cells(l, 4)).Interior.Color = RGB(255, 255, 200)
+    BuildStructuredGrid = r
+End Function
+
+' D. User Defined Portfolios — USER DEFINED COMBINED PORTFOLIOS
+' (A=Name, B=Portfolios to Merge, C=Currency, D=Weight Definition). A:D yellow. 7 empty rows.
+Private Function BuildUserDefinedGrid(ws As Worksheet, startRow As Long) As Long
+    Dim r As Long: r = startRow
+    GridSectionHeader ws, r, "USER DEFINED COMBINED PORTFOLIOS": r = r + 1
+    ws.Cells(r, 1).Value = "Portfolio Name"
+    ws.Cells(r, 2).Value = "Portfolios to Merge (comma-separated)"
+    ws.Cells(r, 3).Value = "Currency"
+    ws.Cells(r, 4).Value = "Weight Definition"
+    GridColumnHeader ws, r, 4: r = r + 1
+    ws.Names.Add Name:="imp_udef_first", RefersTo:="=" & ws.Name & "!$A$" & r
+    Dim j As Long
+    For j = 1 To 7
+        ws.Cells(r, 1).Value = "": ws.Cells(r, 2).Value = "": ws.Cells(r, 3).Value = "": ws.Cells(r, 4).Value = "": r = r + 1
+    Next j
+    ws.Names.Add Name:="imp_udef_last", RefersTo:="=" & ws.Name & "!$A$" & (r - 1)
+    Dim f As Long: f = ws.Range("imp_udef_first").Row
+    Dim l As Long: l = ws.Range("imp_udef_last").Row
+    ws.Range(ws.Cells(f, 1), ws.Cells(l, 4)).Interior.Color = RGB(255, 255, 200)
+    BuildUserDefinedGrid = r
+End Function
 
 ' Descriptor-driven run: which sheet, which fields, which YAML builder, result file name
 Private Sub RunTool(sheetName As String, fields As Variant, yaml As String, _
@@ -325,7 +572,7 @@ End Sub
 
 Public Sub RunImport()
     Dim ws As Worksheet: Set ws = ThisWorkbook.Worksheets(IMPORT_CONFIG_SHEET)
-    RunTool IMPORT_CONFIG_SHEET, FieldsImport(), BuildImportYAML(CollectValues(ws, FieldsImport())), _
+    RunTool IMPORT_CONFIG_SHEET, FieldsImport(), BuildImportYAML(ws), _
             IMPORT_RESULTS_JSON, IMPORT_LOG, IMPORT_RESULTS_SHEET
 End Sub
 
@@ -650,7 +897,7 @@ End Function
 
 Public Function BuildImportYAMLFromSheet(sheetName As String) As String
     Dim ws As Worksheet: Set ws = ThisWorkbook.Worksheets(sheetName)
-    BuildImportYAMLFromSheet = BuildImportYAML(CollectValues(ws, FieldsImport()))
+    BuildImportYAMLFromSheet = BuildImportYAML(ws)
 End Function
 
 ' =========================================================================

@@ -100,9 +100,7 @@ def test_import_yaml_derives_sg_paths_and_empty_outputs(xl_wb):
     _set(wb, s, "output_path", r"output\sim.bhs")
     _set(wb, s, "base_date", "2025-12-31")
     _set(wb, s, "base_economy", "CAD")
-    # Leave outputs and selection blank (defaults = "")
-    _set(wb, s, "outputs", "")
-    _set(wb, s, "selection", "")
+    # outputs/selection are now grids (empty by default) — no row_ cells to set.
 
     text = xl.Run("BuildImportYAMLFromSheet", s)
     cfg = yaml.safe_load(text)
@@ -132,3 +130,71 @@ def test_import_yaml_derives_sg_paths_and_empty_outputs(xl_wb):
         f"Expected outputs=[], got {ibo['outputs']!r}"
     assert ibo["selection"] == [], \
         f"Expected selection=[], got {ibo['selection']!r}"
+
+
+# ---------------------------------------------------------------------------
+# Import YAML — grid default assertions
+# ---------------------------------------------------------------------------
+
+def test_import_yaml_gcp_default(xl_wb):
+    """GC->GCP_CLO is the only prefilled row; others blank => only GC emitted."""
+    xl, wb = xl_wb
+    text = xl.Run("BuildImportYAMLFromSheet", "PIT_Import_Config")
+    cfg = yaml.safe_load(text)
+    assert cfg["multiple_gcp_types"] == {"GC": ["GCP_CLO"]}, \
+        f"Expected {{'GC': ['GCP_CLO']}}, got {cfg['multiple_gcp_types']!r}"
+
+
+def test_import_yaml_structured_defaults(xl_wb):
+    """All 7 structured rows prefilled [False, 'USD', 'MarketValue']."""
+    xl, wb = xl_wb
+    text = xl.Run("BuildImportYAMLFromSheet", "PIT_Import_Config")
+    cfg = yaml.safe_load(text)
+    sp = cfg["structured_portfolios_parameters"]
+    expected_keys = [
+        "agency_cmbs", "structured_clo", "structured_cre", "structured_retail",
+        "all_structured_selected", "all_structured", "all_structured_nonstructured",
+    ]
+    assert sorted(sp.keys()) == sorted(expected_keys), f"Keys mismatch: {list(sp.keys())!r}"
+    for k, val in sp.items():
+        assert val == [False, "USD", "MarketValue"], \
+            f"{k}: expected [False, 'USD', 'MarketValue'], got {val!r}"
+
+
+def test_import_yaml_userdefined_default_empty(xl_wb):
+    """All 7 user-defined rows empty => {}."""
+    xl, wb = xl_wb
+    text = xl.Run("BuildImportYAMLFromSheet", "PIT_Import_Config")
+    cfg = yaml.safe_load(text)
+    ud = cfg["userDefined_combined_structured_nonstructured_portfolios"]
+    assert ud == {}, f"Expected {{}}, got {ud!r}"
+
+
+def test_import_yaml_output_default_empty(xl_wb):
+    """All 8 output rows empty => outputs:[], selection:[] (no fallback)."""
+    xl, wb = xl_wb
+    text = xl.Run("BuildImportYAMLFromSheet", "PIT_Import_Config")
+    cfg = yaml.safe_load(text)
+    ibo = cfg["Issuer_Bond_Output"]
+    assert ibo["outputs"] == [], f"Expected [], got {ibo['outputs']!r}"
+    assert ibo["selection"] == [], f"Expected [], got {ibo['selection']!r}"
+
+
+def test_import_yaml_output_row_set(xl_wb):
+    """Set first output row => outputs=['CreditClass'], selection=[['All']]."""
+    xl, wb = xl_wb
+    s = "PIT_Import_Config"
+    ws = wb.Worksheets(s)
+    first_row = ws.Range("imp_out_first").Row
+    ws.Cells(first_row, 1).Value = "CreditClass"
+    ws.Cells(first_row, 2).Value = "All"
+    try:
+        text = xl.Run("BuildImportYAMLFromSheet", s)
+        cfg = yaml.safe_load(text)
+        ibo = cfg["Issuer_Bond_Output"]
+        assert ibo["outputs"] == ["CreditClass"], f"outputs: {ibo['outputs']!r}"
+        assert ibo["selection"] == [["All"]], f"selection: {ibo['selection']!r}"
+    finally:
+        # Restore defaults so other tests see an empty output grid.
+        ws.Cells(first_row, 1).Value = ""
+        ws.Cells(first_row, 2).Value = ""
