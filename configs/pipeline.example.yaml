@@ -11,7 +11,7 @@ convert:
   GCorr_Corporate_version: "2019"
   converter_paths:
     data_path: "UserData"
-    output_path: "output"          # <- becomes the import rics_path
+    output_path: "RICSFormatData"  # <- becomes the import rics_path
   converter_data_types:
     granular: ["GC", "GCCRE", "AgencyMBS"]
     portfolio: ["portfolio"]
@@ -54,7 +54,7 @@ import:
     data_path:      "C:/Program Files/Moody's/SG/10.5.0/Data"
     model_path:     "C:/Program Files/Moody's/SG/10.5.0/Models"
     licence_path:   "C:/path/to/your/Moodys_Licence.licx"
-    output_path:    "output/Portfolio_Import.bhs"
+    output_path:    "RICSFormatData/Portfolio_Import.bhs"
     load_sim_path:  ""
   multiple_gcp_types: {}
   structured_portfolios_parameters:

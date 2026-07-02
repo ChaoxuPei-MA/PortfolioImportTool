@@ -6,7 +6,7 @@ GCorr_Corporate_version: "2019"
 
 converter_paths:
   data_path: "./UserData"
-  output_path: "./RICS_Files"
+  output_path: "RICSFormatData"
 
 converter_data_types:
   granular: ["GC", "GCCRE", "AgencyMBS"]
