@@ -77,8 +77,11 @@ def main() -> int:
             f.write(GRANULAR_README)
     with open(os.path.join(OUT, "UserData", "portfolio", "README.txt"), "w", encoding="utf-8") as f:
         f.write(PORTFOLIO_README)
-    # output/ is created automatically by the tools on first run (kept out of the
-    # package so results aren't mixed with placeholder files).
+    # RICSFormatData/ holds the Convert output (RICS bulk-import files) and the
+    # Import .bhs. Pre-created so users see where results land.
+    os.makedirs(os.path.join(OUT, "RICSFormatData"), exist_ok=True)
+    with open(os.path.join(OUT, "RICSFormatData", "README.txt"), "w", encoding="utf-8") as f:
+        f.write("Convert writes RICS bulk-import files here; Import writes the .bhs here.\n")
 
     print("Done. Zip the ToUser folder and share it; recipients follow UserGuide.md.")
     return 0

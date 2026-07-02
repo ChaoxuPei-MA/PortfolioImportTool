@@ -10,7 +10,7 @@ convert:
   GCorr_Corporate_version: "2019"
   converter_paths:
     data_path: "UserData"
-    output_path: "output"          # -> becomes the import rics_path automatically
+    output_path: "RICSFormatData"    # -> becomes the import rics_path automatically
   converter_data_types:
     granular: ["GC", "GCCRE", "AgencyMBS"]
     portfolio: ["portfolio"]
@@ -48,23 +48,27 @@ convert:
 import:
   # rics_path and settings.base_date are set automatically from the convert stage.
   paths:
-    runtime_config: "C:/Program Files/Moody's/SG/10.5.0/MoodysAnalytics.SG.UI.runtimeconfig.json"   # EDIT
-    assembly_path:  "C:/Program Files/Moody's/SG/10.5.0"                                              # EDIT
-    data_path:      "C:/Program Files/Moody's/SG/10.5.0/Data"                                         # EDIT
-    model_path:     "C:/Program Files/Moody's/SG/10.5.0/Models"                                       # EDIT
-    licence_path:   "C:/path/to/your/Moodys_Licence.licx"                                             # EDIT
-    output_path:    "output/Portfolio_Import.bhs"
-    load_sim_path:  ""
-  multiple_gcp_types: {}
+    # EDIT: your Moody's SG install; runtime/assembly/model/data derived from it.
+    sg_path:       "C:/Program Files/Moody's/SG/10.5.0"
+    licence_path:  "C:/path/to/your/Moodys_Licence.licx"        # EDIT
+    output_path:   "RICSFormatData/Portfolio_Import.bhs"
+    load_sim_path: ""
+  # EXAMPLE: merge GCP_CLO into GC (edit or set to {} to skip).
+  multiple_gcp_types:
+    GC:
+      - GCP_CLO
+  # EXAMPLE enables structured_clo.
   structured_portfolios_parameters:
     agency_cmbs:                  [false, 'USD', 'MarketValue']
-    structured_clo:               [false, 'USD', 'MarketValue']
+    structured_clo:               [true,  'USD', 'MarketValue']
     structured_cre:               [false, 'USD', 'MarketValue']
     structured_retail:            [false, 'USD', 'MarketValue']
     all_structured_selected:      [false, 'USD', 'MarketValue']
     all_structured:               [false, 'USD', 'MarketValue']
     all_structured_nonstructured: [false, 'USD', 'MarketValue']
-  userDefined_combined_structured_nonstructured_portfolios: {}
+  # EXAMPLE combined portfolio (edit or set to {} to skip).
+  userDefined_combined_structured_nonstructured_portfolios:
+    Combined_Corp: [["GC", "GC_CLO"], 'USD', 'MarketValue']
   settings:
     load_sim: false
     keep_existing_portfolios: false
@@ -73,6 +77,7 @@ import:
     import_mpr_models: true
     import_zscore_models: true
     base_economy: "USD"           # EDIT
+  # EXAMPLE outputs (use [] / [] to add none).
   Issuer_Bond_Output:
-    outputs: []
-    selection: []
+    outputs:   ["CreditClass", "TotalValue"]
+    selection: [["All"], ["GC", "GCCRE"]]

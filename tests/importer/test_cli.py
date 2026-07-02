@@ -13,6 +13,33 @@ def test_help_returns_zero():
     assert cli.main(["--help"]) == 0
 
 
+def test_apply_sg_path_derives_four_paths(tmp_path):
+    sg = tmp_path / "SG"
+    (sg / "Data").mkdir(parents=True)   # Data exists -> data_path = <sg>\Data
+    (sg / "Models").mkdir()
+    config = {"paths": {"sg_path": str(sg)}}
+    cli.apply_sg_path(config)
+    p = config["paths"]
+    assert p["assembly_path"] == str(sg)
+    assert p["runtime_config"].endswith("MoodysAnalytics.SG.UI.runtimeconfig.json")
+    assert p["model_path"] == os.path.join(str(sg), "Models")
+    assert p["data_path"] == os.path.join(str(sg), "Data")
+
+
+def test_apply_sg_path_data_falls_back_to_root_when_no_data_dir(tmp_path):
+    sg = tmp_path / "SG"     # no Data\ subfolder
+    sg.mkdir()
+    config = {"paths": {"sg_path": str(sg)}}
+    cli.apply_sg_path(config)
+    assert config["paths"]["data_path"] == str(sg)   # falls back to SG root
+
+
+def test_apply_sg_path_noop_without_sg_path():
+    config = {"paths": {"assembly_path": "X"}}
+    cli.apply_sg_path(config)
+    assert "runtime_config" not in config["paths"]   # nothing derived
+
+
 def test_missing_config_returns_one(capsys):
     assert cli.main(["Z:/no/such/config.yaml"]) == 1
     assert "not found" in capsys.readouterr().err.lower()

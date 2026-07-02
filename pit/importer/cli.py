@@ -59,11 +59,33 @@ def convert_excel_config_to_internal(excel_config: dict) -> dict:
     return config
 
 
+def apply_sg_path(config: dict) -> None:
+    """If paths.sg_path is given, derive the four SG paths from it (unless already set).
+
+    assembly_path = <sg>; runtime_config = <sg>\\MoodysAnalytics.SG.UI.runtimeconfig.json;
+    model_path = <sg>\\Models; data_path = <sg>\\Data if that folder exists else <sg>
+    (some SG installs keep data in the root rather than a Data\\ subfolder).
+    Lets a config specify one SG path instead of four.
+    """
+    paths = config.get("paths")
+    if not isinstance(paths, dict):
+        return
+    sg = str(paths.get("sg_path", "")).strip()
+    if not sg:
+        return
+    paths.setdefault("assembly_path", sg)
+    paths.setdefault("runtime_config", os.path.join(sg, "MoodysAnalytics.SG.UI.runtimeconfig.json"))
+    paths.setdefault("model_path", os.path.join(sg, "Models"))
+    _data = os.path.join(sg, "Data")
+    paths.setdefault("data_path", _data if os.path.isdir(_data) else sg)
+
+
 def run_import_with_config(config: dict) -> int:
     out_dir = _script_dir()
     log_path = setup_logging(os.path.join(out_dir, LOG_FILENAME))
     logger = logging.getLogger(__name__)
     try:
+        apply_sg_path(config)
         pipeline.run(config)
         output_path = config["paths"]["output_path"]
         result = Result.success("Import completed successfully",

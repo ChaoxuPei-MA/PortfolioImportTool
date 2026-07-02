@@ -18,6 +18,7 @@ UserData/
 MoodysInternalData/
 RICS_Files/
 output/
+RICSFormatData/
 configs/*.local.yaml
 
 # Distribution package (built by build/make_touser.py — large exes).

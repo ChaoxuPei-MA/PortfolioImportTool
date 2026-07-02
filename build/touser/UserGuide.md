@@ -25,7 +25,7 @@ configs\
 UserData\                      <-- PUT YOUR INPUT DATA HERE
   granularCounterparty\ (GC, GCCRE, AgencyMBS)
   portfolio\
-output\                        results are written here
+RICSFormatData\                results (RICS files + the .bhs) are written here
 UserGuide.md                   this file
 ```
 
@@ -71,14 +71,14 @@ Include only the subfolders you have, and list them in the config's
 2. If the tabs aren't there yet, press `Alt+F8`, run **`CreateConfigSheets`**.
 3. On the **Convert** tab (yellow cells are editable):
    - `Converter Exe Path` defaults to `.\dist\Converter.exe` (already correct).
-   - Set `Data Path` (e.g. `UserData`) and `RICSFormatData Path` (e.g. `output`).
+   - Set `Data Path` (e.g. `UserData`) and `RICSFormatData Path` (e.g. `RICSFormatData`).
    - Set the date and versions.
    - Click **Run Convert**. Results appear on the `PIT_Convert_Results` sheet.
 4. On the **Import** tab (requires Moody's SG):
    - `Importer Exe Path` defaults to `.\dist\Importer.exe`.
    - Set **SG Path** to your Moody's SG folder (e.g. `C:\Program Files\Moody's\SG\10.5.0`).
-   - Set **Licence Path**, **RICSFormatData Path** (the Convert output, e.g. `output`),
-     and **RICS Sim Output Path** (e.g. `output\Portfolio_Import.bhs`).
+   - Set **Licence Path**, **RICSFormatData Path** (the Convert output, e.g. `RICSFormatData`),
+     and **RICS Sim Output Path** (e.g. `RICSFormatData\Portfolio_Import.bhs`).
    - Click **Run Import**. Results appear on `PIT_Import_Results`.
 
 > Paths typed as relative (e.g. `UserData`) are resolved next to the workbook.
@@ -107,15 +107,15 @@ dist\Pipeline.exe configs\pipeline_config.yaml
 With Pipeline, the Convert output is fed to Import automatically and the date is
 shared, so you do **not** set `rics_path` or `base_date` in the `import:` section.
 
-> Run these from **this folder** so the relative paths (`UserData`, `output`) resolve.
+> Run these from **this folder** so the relative paths (`UserData`, `RICSFormatData`) resolve.
 
 ---
 
 ## 6. Outputs
 
-- **Convert** writes RICS files under `output\` (e.g. `output\granularCounterparty\GC\1_GCP.csv`,
-  `output\portfolio\CompositePortfolio.csv`) plus `RICS_Format_Converter_Summary.txt`.
-- **Import** writes the simulation `output\Portfolio_Import.bhs` — open it in Moody's SG.
+- **Convert** writes RICS files under `RICSFormatData\` (e.g. `RICSFormatData\granularCounterparty\GC\1_GCP.csv`,
+  `RICSFormatData\portfolio\CompositePortfolio.csv`) plus `RICS_Format_Converter_Summary.txt`.
+- **Import** writes the simulation `RICSFormatData\Portfolio_Import.bhs` — open it in Moody's SG.
 - Each stage also writes a small results JSON and a `.log` next to its `.exe`
   (`dist\rics_converter_*.json/.log`, `dist\rics_import_*.json/.log`) — check the log if
   something fails.

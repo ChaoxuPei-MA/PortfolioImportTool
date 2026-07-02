@@ -8,8 +8,8 @@ RICS_version: "10.5"
 GCorr_Corporate_version: "2019"
 
 converter_paths:
-  data_path: "UserData"         # your inputs (see UserData\ layout)
-  output_path: "output"         # RICS files are written here
+  data_path: "UserData"           # your inputs (see UserData\ layout)
+  output_path: "RICSFormatData"   # RICS bulk-import files are written here
 
 converter_data_types:
   granular: ["GC", "GCCRE", "AgencyMBS"]   # the subfolders under UserData\granularCounterparty

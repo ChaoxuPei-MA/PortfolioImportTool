@@ -1,31 +1,36 @@
 # Import config for Importer.exe (run from the tool folder):
 #   dist\Importer.exe configs\import_config.yaml
-# REQUIRES a Moody's SG installation + a valid licence on this machine.
-# Edit the SG paths and licence to match your install.
+# REQUIRES a Moody's SG installation + a valid licence.
+# The sections below are filled with EXAMPLE values — edit them for your data
+# (set a section to {} or [] to skip it).
 
 paths:
-  # EDIT: your Moody's SG install (version folder may differ from 10.5.0)
-  runtime_config: "C:/Program Files/Moody's/SG/10.5.0/MoodysAnalytics.SG.UI.runtimeconfig.json"
-  assembly_path:  "C:/Program Files/Moody's/SG/10.5.0"
-  data_path:      "C:/Program Files/Moody's/SG/10.5.0/Data"
-  model_path:     "C:/Program Files/Moody's/SG/10.5.0/Models"
-  licence_path:   "C:/path/to/your/Moodys_Licence.licx"   # EDIT
-  rics_path:      "output"                    # the RICS files produced by Convert
-  output_path:    "output/Portfolio_Import.bhs"           # simulation to write
-  load_sim_path:  ""
+  # EDIT: your Moody's SG install folder. The runtime config, assembly, model,
+  # and data paths are derived from this automatically.
+  sg_path:       "C:/Program Files/Moody's/SG/10.5.0"
+  licence_path:  "C:/path/to/your/Moodys_Licence.licx"    # EDIT: your .licx
+  rics_path:     "RICSFormatData"                 # the Convert output to import
+  output_path:   "RICSFormatData/Portfolio_Import.bhs"    # simulation to write
+  load_sim_path: ""                               # only used if settings.load_sim: true
 
-multiple_gcp_types: {}
+# Merge sub-folders into a base GC type before import. EXAMPLE: merge GCP_CLO into GC.
+multiple_gcp_types:
+  GC:
+    - GCP_CLO
 
+# Structured portfolios: [enabled, currency, weight]. EXAMPLE enables structured_clo.
 structured_portfolios_parameters:
   agency_cmbs:                  [false, 'USD', 'MarketValue']
-  structured_clo:               [false, 'USD', 'MarketValue']
+  structured_clo:               [true,  'USD', 'MarketValue']
   structured_cre:               [false, 'USD', 'MarketValue']
   structured_retail:            [false, 'USD', 'MarketValue']
   all_structured_selected:      [false, 'USD', 'MarketValue']
   all_structured:               [false, 'USD', 'MarketValue']
   all_structured_nonstructured: [false, 'USD', 'MarketValue']
 
-userDefined_combined_structured_nonstructured_portfolios: {}
+# Combined portfolios: name: [[portfolios to merge], currency, weight]. EXAMPLE:
+userDefined_combined_structured_nonstructured_portfolios:
+  Combined_Corp: [["GC", "GC_CLO"], 'USD', 'MarketValue']
 
 settings:
   load_sim: false
@@ -37,7 +42,8 @@ settings:
   base_date: "2025-06-30"        # EDIT: simulation base date
   base_economy: "USD"            # EDIT: base economy
 
-# Empty => no issuer/bond outputs are added.
+# Issuer/bond outputs. EXAMPLE: CreditClass for all types, TotalValue for GC + GCCRE.
+# outputs[i] pairs with selection[i]. Use [] / [] to add no outputs.
 Issuer_Bond_Output:
-  outputs: []
-  selection: []
+  outputs:   ["CreditClass", "TotalValue"]
+  selection: [["All"], ["GC", "GCCRE"]]
